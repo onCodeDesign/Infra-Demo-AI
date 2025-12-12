@@ -18,15 +18,19 @@ var host = Host.CreateDefaultBuilder(args).ConfigureServices(services =>
 		                                 || assembly.StartsWith("DataAccess")
 		                                 || assembly.StartsWith("Export.")
 		                                 || assembly.StartsWith("Notifications.")
-		                                 || assembly.StartsWith("Sales.");
+		                                 || assembly.StartsWith("Sales.")
+		                                 || assembly.StartsWith("ProductsManagement.")
+		                                 || assembly.StartsWith("PersonsManagement.");
 
 		options.PluginPathBuilderOption = PluginPathBuilderOption.BreadcrumbNameConvention;
 		options.BreadcrumbNameConventionPathBuilderPluginsDir = "Modules";
 		options.BreadcrumbNameConventionPathBuilderTopDirs = ["UI", "Modules", "Infra"];
 		options
 			.AddPlugin("Notifications.Services")
-			.AddPlugin("Sales.Services", "Sales.DbContext")
+			.AddPlugin("Sales.Services", "Sales.DbContext", "Sales.ConsoleCommands")
 			.AddPlugin("Export.Services")
+			.AddPlugin("ProductsManagement.Services", "ProductsManagement.DbContext", "ProductsManagement.ConsoleCommands")
+			.AddPlugin("PersonsManagement.Services", "PersonsManagement.DbContext", "PersonsManagement.ConsoleCommands")
 			;
 
 	})
@@ -38,6 +42,3 @@ var host = Host.CreateDefaultBuilder(args).ConfigureServices(services =>
 
 
 Console.WriteLine(); Console.WriteLine("AppBoot done!");
-
-//OrdersConsoleApplication app = host.Services.GetRequiredService<OrdersConsoleApplication>();
-//app.ShowAllOrders();
