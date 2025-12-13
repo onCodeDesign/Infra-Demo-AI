@@ -1,187 +1,235 @@
 # Copilot Instructions for This Repository
 
-> Purpose: Teach GitHub Copilot (Chat, Ask, and Agent modes) how to work in this codebase. These rules also help human contributors stay consistent.
+> These instructions guide GitHub Copilot when working with this code structure enforced by the Application Infrastructure. Focus: modular plugin architecture with strict boundary enforcement and strict dependencies rules.
 
 ---
 
-## 0) Project Identity
-- **Architecture style:** Clean Architecture + modular boundaries
-- **Primary language:** C# (.NET)
-- **Patterns:** DI-first, Controlled References, Plugin Applications, Infrastructure, iFX, Hidden Frameworks
-- **Packages:**  EF Core, Microsoft.Extensions.Logging, Microsoft.Extensions.DependencyInjection
-- **Domains/Modules:** e.g., `Sales`, `Notifications`, `Export`
-
-> **Copilot:** Prefer conventional solutions using the libraries above. If a library is not present, scaffold minimal, idiomatic .NET code without adding new dependencies.
+## Project Identity
+- **Style:** Clean Architecture with runtime-loadable plugin modules
+- **Stack:** .NET 10, C#, EF Core 10, Microsoft.Extensions.* (DI, Hosting, Logging)
+- **Key Patterns:** 
+    - AppBoot plugin system with isolated LoadContexts per module
+    - Hide external frameworks (EF Core) from business logic (Modules) via abstraction (IRepository/IUnitOfWork)
+- **Modules:** `Sales`, `ProductsManagement`, `PersonsManagement`, `Notifications`, `Export`
 
 ---
 
-## 1) Folder & Layering Rules (must follow)
+## Architecture Overview
+
+### Folder Structure & Boundaries
 ```
-repo-root/
-├─ Infra/                         # Application Infrastruture (Application Framework, DataAccess, Logging, Messaging etc) 
-│  ├─ AppBoot/                    # dependency injection, modules composition, app startup, plugins dynamic load
-│  ├─ AppBoot.UnitTests/          # Unit tests for AppBoot
-│  ├─ DataAccess/                 # Hides EF Core, IRepository and IUnitOfWork implementations
-├─ Modules/                       # Functionalities grouped by domain (Sales, Notifications, Export etc).
-│  ├─ Contracts/                  # Contracts shared between modules (e.g., Events, Messages, DTOs). No logic here!
-│  ├─ Sales/                      # Sales module (example)
-│  │  ├─ Sales.Services/          # Use-cases implementations, domain services.
-│  │  ├─ Sales.DataModel/         # [Example] Entities, DTOs mapped to DB tables. No logic here! (no if, while, logical expressions etc.). NO reference to EF Core!
-│  │  ├─ Sales.DbContext/         # [Example] EF DbContext for Sales module
-│  │  └─ Sales.Console/           # [Optional] Console UI commands specific to sales module.
-│  └─ Notifications/              # Notifications module (example)
-│     └─ Notifications.Services/  # Use-cases implementations, domain services.
-└─ UI/                            # User Interface layer / Clients   
-   └─ ConsoleUi/                  # Console application (CLI)
+Infra/                           # Infrastructure framework (DO NOT MODIFY)
+├─ AppBoot/                      # DI, plugin loading, app bootstrap, modules initialization
+├─ DataAccess/                   # Hides EF Core via abstraction (IRepository/IUnitOfWork). The ONLY assembly allowed to reference EF Core
+Modules/
+├─ Contracts/                    # Pure interfaces/DTOs - NO dependencies, NO logic
+├─ {Module}/                     # e.g., Sales, ProductsManagement
+│  ├─ {Module}.Services/         # Business logic - [Service] attribute for DI
+│  ├─ {Module}.DataModel/        # Entities only - NO logic, NO EF references
+│  ├─ {Module}.DbContext/        # EF DbContext (DO NOT MODIFY - generated)
+│  └─ {Module}.ConsoleCommands/  # Console commands via IConsoleCommand
+UI/
+└─ ConsoleUi/                    # Host app - references Contracts only
 ```
 
-### Dependency boundaries
-- `Infra/*` → implements ports for DB, messaging, HTTP, files, dymamic load of plugins; registers via DI; no domain logic.
-- `Modules/Contracts` → **no** references to anything. Only pure DTOs and interfaces. No logic
-- `Modules/*` → **no** references to other modules. Only references to **Contracts** and **Infra**.
-- `Modules/*/*.DataModel` → **no** logic; only entities/DTOs; no references to EF Core or other frameworks.
-- `Modules/*/*.Services` → references **Contracts** and **DataModel**; NO references ot EF Core or other frameworks. Contains domain logic and use-cases.
-- `UI/*` → references **Modules/Contracts** and **Infra**; NO references to **Modules/*/Services**. No domain logic.
+### Dependency Rules (STRICT)
+1. `Contracts` → **ZERO** dependencies (pure interfaces/DTOs)
+2. `*.Services` → References: `Contracts`, `DataAccess`, `*.DataModel` only
+3. `*.DataModel` → NO logic (entities/value objects only), NO EF Core references
+4. `UI/ConsoleUi` → References: `Contracts`, `AppBoot` only (NOT *.Services)
+5. `*.DbContext` → EF-specific, uses `PrivateAssets=all` to hide EF from dependents
+6. **NO cross-module references** → `Sales.*` cannot reference `ProductsManagement.*` directly - modules interact ONLY through `Contracts` interfaces
 
-
-> **Copilot:** If a change violates these rules, raise an error instead of making the change.
+**If a change violates these, STOP and suggest an adapter/extension instead.**
 
 ---
 
-## 2) Registering in DI
-- Use `ServiceAttribute` from `Infra/AppBoot` to register services in DI.
-- The `ServiceAttribute` decorates the implementation class, specifying the service lifetime and the interface to register.
-- Register only interfaces, not concrete classes.
-- Example of the `PriceCalculator` class registered as the implementation of the `IPriceCalculator` interface:
- ```
- [Service(typeof(IPriceCalculator), ServiceLifetime.Transient)]
- class PriceCalculator : IPriceCalculator
- {
-    public decimal CalculateTaxes(OrderRequest o, Customer c)
+## Critical Patterns
+
+### 1) Service Registration
+Use `[Service(typeof(IInterface), ServiceLifetime)]` from `AppBoot/DependencyInjection`:
+```csharp
+[Service(typeof(IOrderingService), ServiceLifetime.Transient)]
+class OrderingService(IRepository repository) : IOrderingService
+```
+- **Always** register by interface, not concrete type
+- Attribute discovered automatically by `ServiceRegistrationBehavior`
+- Default lifetime is `Transient` if omitted
+
+### 2) Data Access - Repository Pattern
+**Read-only:** Inject `IRepository`, use `GetEntities<T>()`:
+```csharp
+var orders = repository.GetEntities<SalesOrderHeader>()
+    .Where(o => o.Customer.LastName == name)
+    .ToArray();
+```
+
+**Modify data:** Use `CreateUnitOfWork()` pattern:
+```csharp
+using (IUnitOfWork uof = repository.CreateUnitOfWork())
+{
+    var order = uof.GetEntities<Order>().First(o => o.Id == id);
+    order.Status = 5;
+    uof.SaveChanges();
+}
+```
+- **Never** use `DbContext` directly in Services layer (enforced by project references)
+- `IUnitOfWork` inherits from `IRepository`. It reads data to be modified and tracks changes for `SaveChanges()`.
+
+### 3) Plugin Loading (Program.cs)
+Modules are loaded dynamically at runtime:
+```csharp
+options
+    .AddPlugin("Sales.Services", "Sales.DbContext", "Sales.ConsoleCommands")
+    .AddPlugin("Notifications.Services");
+```
+- First parameter: primary assembly name (must have `EnableDynamicLoading=true`)
+- Additional params: dependent assemblies in same LoadContext
+- Specify all assemblies that are not referenced by any other assembly, grouped by module. Plugin == Module.
+- One LoadContext is created for each defined plugin.
+- Convention: `{ModuleName}.{AssemblySuffix}` matches folder structure
+- See `UI/ConsoleUi/Program.cs` for full bootstrap example
+
+### 4) Module Initialization
+Modules implement `IModule` for startup logic:
+```csharp
+[Service(typeof(IModule), ServiceLifetime.Singleton)]
+class SalesServicesModule(INotificationService notificationService) : IModule
+{
+    public void Initialize(IHost host)
     {
+        notificationService.NotifyAlive(this);
     }
-  }
- ```
+}
+```
+- `Initialize()` called once at app startup, on `Main()` function
 
-## 3) Coding Conventions (C#)
-- **Async:** Prefer async/await end-to-end. Do not block (`.Result`, `.Wait()`), avoid `async void` (except event handlers).
-- **Nullability:** Treat nullable warnings as errors; initialize properly.
-- **Exceptions:** Throw boundary-specific exceptions from Infra
-- **Logging:** Use `ILogger<T>`
-- **Mapping:** Use manual mapping rather the frameworks.
-- **Immutability:** Prefer records for value objects; entities keep private setters where possible.
-- **Configuration:** Use `IOptions<T>`; **never** hardcode secrets or connection strings.
-- **Comments:** Avoid using comments. Prefer explicit code.
+### 5) Entity Interceptors
+Hook into EF lifecycle via `IEntityInterceptor<T>` or `IEntityInterceptor`:
+- Registered automatically via `[Service]` attribute
+- Applied by DataAccess layer (no direct EF SaveChanges calls)
 
----
+#### 5.1.) Specific Entity Interceptor
 
-## 5) AppBoot Plugin Model
-- AppBoot supports dynamic loading of modules as plugins at runtime.
-- In `Program.cs` where AppBoot is configured, use `.AddPlugin()` to specify the modules that should be loaded as plugins.
-- Load as plugins all assemblies that are not referenced by any other assembly at compile time (i.e., have no incoming `ProjectReference` in the solution).
-- Each call to `.AddPlugin()` creates a LoadContext isolated for that module assembly; dependent assemblies passed in the dependency array are loaded into the same LoadContext.
-- `AddPlugin()` accepts modules names, which are built by convvention as `{ModuleName}.{AssemblySuffix}`. 
-  - The `ModuleName` correspond to the folder name under `Modules/` (e.g., `Sales`, `Notifications`).
-  - The `AssemblySuffix` is the assembly name without the module name prefix (e.g., `Services`, `DbContext`).
-  - Assembly are named by convention as `{ModuleName}.{AssemblySuffix}` (e.g., `Sales.Services`, `Notifications.Services`, `Sales.DbContext`).
-- When a module has dependent assemblies that are not referenced by the assembly that gives the plugin name, specify their names in the `.AddPlugin()` dependency parameter.
-    - Example: `.AddPlugin("Sales.Services", new[] { "Sales.DbContext" })` — each string is a simple module name (not a file path or DLL filename).
+- Use `IEntityInterceptor<T>` to register interceptors that will be applied to a specific entity type ONLY.
+- Implement by inheriting from `EntityInterceptor<T>` and overriding methods like `OnSave()`, `OnDelete()`, etc.
 
-## 6) Build for Dev/Debug
-- Some plugin assemblies are not referenced by the host or by other projects. These assemblies are loaded dynamically at runtime and must be built for Dev/Debug.
-- Ensure those assemblies are included in the Visual Studio build by adding them as build dependencies of the host or plugin root project using the __Project Build Dependencies__ feature in the solution.
-    - Steps: right‑click the solution → choose __Project Build Dependencies__ → select the dependent projects (for example, add plugin projects as dependencies of `UI/ConsoleUi` or the plugin root).
-    - The selection is saved in the `.sln` file and is not part of individual project files.
-- If a plugin has additional assemblies that are not directly referenced, add those dependent projects as build dependencies of the plugin root project as well.
-    - Example: `Sales.DbContext` is a dependency of the `Sales.Services` plugin; add `Sales.DbContext` as a build dependency of the `Sales.Services` project so both are built in Debug.
+```csharp
+[Service(typeof(IEntityInterceptor<SalesOrderHeader>))]
+class SalesOrderCalculationsInterceptor : EntityInterceptor<SalesOrderHeader>
+{
+    public void OnSave(IEntityEntry<SalesOrderHeader> entry, IUnitOfWork uof)
+    {
+        entry.Entity.TotalDue = entry.Entity.SubTotal + entry.Entity.TaxAmt;
+    }
+}
+```
 
-## 7) Data & Persistence
-- `Infra/DataAcces` abstractions only, like `IRepository` or `IUnitOfWork`. Do not use directly EF Core. Do not take hard dependencies to EF Core. 
-- Use `IRepository` for read only cases; Get the `IRepository` via DI.
-- Use `IUnitOfWork` for transactional operations; Get the `IUnitOfWork` via a factory function (`IRepository.CreateUnitOfWork`).
+#### 5.2.) Global Entity Interceptor
 
----
+- Use `IEntityInterceptor` to register interceptors that will be applied to ALL entities.
+- Implement by inheriting from `GlobalEntityInterceptor` and overriding methods like `OnSave()`, `OnDelete()`, etc.
 
-## 8) Console UI
-- Host project is `UI/ConsoleUi/`.
-- Each module has its own subfolder under `Modules/` for console commands (e.g., `Modules/Sales/Console/`).
-- The modules do not directly depend `UI/ConsoleUi/`; instead, commands implement interfaces defined in `Modules/Contracts/Console/`.
+```csharp
+[Service(typeof(IEntityInterceptor))]
+internal sealed class AuditableInterceptor : GlobalEntityInterceptor<IAuditable>
+{
+    public override void OnSave(IEntityEntry<IAuditable> entry, IUnitOfWork unitOfWork)
+    {
+        if (entry.State.HasFlag(EntityEntryState.Added) || entry.State.HasFlag(EntityEntryState.Modified))
+        {
+            entry.Entity.ModifiedDate = DateTime.UtcNow;
+        }
+    }
+}
+```
 
 ---
 
+## Build & Debug Workflow
 
-## 9) Files Copilot Must Not Modify
-- Any file under `Infra/**`
-- Any file under `*/DbContext`
-- Any `*.csproj` file
+### Building
+```powershell
+dotnet build                     # From repo root
+dotnet run --project UI/ConsoleUi  # Run console app
+```
 
-> **Copilot:** If a change is requested in these paths, reply with an alternative that keeps generated/third-party code intact (e.g., partial class, extension method, adapter).
+### Plugin Build Dependencies
+**Problem:** Plugin assemblies (e.g., `Sales.Services`) aren't referenced directly by host, so VS may not build them.
+
+**Solution:** Add to Visual Studio build dependencies:
+- Right-click solution → **Project Build Dependencies**
+- Add plugin projects as dependencies of `UI/ConsoleUi`
+- For multi-assembly plugins (e.g., `Sales.Services` + `Sales.DbContext`), add dependent asseblies as dependencies of the primary plugin assembly only (e.g., `Sales.Services`)
+
+### Project Configuration
+- Plugin assemblies which are dynamically loaded, as no other assemblies references them, have `<EnableDynamicLoading>true</EnableDynamicLoading>`
+- `DbContext` projects because they hide EF use `<PrivateAssets>all</PrivateAssets>` for EF packages (prevents leaking to Services)
+- Contracts has NO dependencies (`Contracts.csproj` is minimal)
 
 ---
 
-## 10) How Copilot Should Respond (Style Guide)
-- Prefer **small, reviewable diffs**. If a change spans multiple files, list a plan first.
-- Quote path-relative file names in suggestions (e.g., `src/Application/Orders/GetOrderHandler.cs`).
-- Include a brief checklist with each plan.
-- If context is missing, ask **one clear question** before proceeding.
+## Coding Conventions
+- **Async all the way:** No `.Result`/`.Wait()`, use `async`/`await` end-to-end
+- **Nullability:** `<Nullable>enable</Nullable>` enforced - treat warnings as errors
+- **Primary constructors:** Use for DI (e.g., `class Foo(IRepo repo) : IFoo`)
+- **No comments:** Code should be self-documenting
+- **Manual mapping:** Avoid AutoMapper - write explicit mapping code
+- **Internal by default:** Mark services `internal` unless explicitly exported via `Contracts`
 
-**Example response skeleton:**
+---
+
+## Protected Areas (DO NOT MODIFY)
+- `Infra/**` - Framework code, touch only via extension methods/adapters
+- `*/DbContext/**` - EF-generated or scaffolded, modify via migrations
+- `*.csproj` files - Avoid manual edits (managed by SDK/tooling)
+
+If modification requested in these areas, suggest:
+- Extension methods (for Infra)
+- Partial classes (for DbContext entities if needed)
+- Adapter pattern (for changing contracts)
+
+---
+
+## Response Style
+When proposing changes:
+1. **Plan first** if >2 files affected (numbered list)
+2. **Quote paths** (e.g., `Modules/Sales/Sales.Services/OrderingService.cs`)
+3. **Verify boundaries** (e.g., "Sales.Services → only refs Contracts/DataModel ✓")
+4. **Ask ONE question** if context missing (not a list)
+
+Example plan:
 ```
 Plan
-1) Add DTO + validator in Application
-2) Add handler with repository usage
-3) Register mapping in Infrastructure
-4) Expose endpoint in WebApi
+1. Add ICustomerService interface to Modules/Contracts/Sales/
+2. Implement in Modules/Sales/Sales.Services/CustomerService.cs with [Service] attribute
+3. Inject IRepository for read-only customer queries
 
-Files to change
-- src/Application/Orders/GetOrderQuery.cs (new)
-- src/Application/Orders/GetOrderValidator.cs (new)
-- src/Application/Orders/GetOrderHandler.cs (new)
-- src/WebApi/Endpoints/Orders/Get.cs (new)
+Files:
+- Modules/Contracts/Sales/ICustomerService.cs (new)
+- Modules/Sales/Sales.Services/CustomerService.cs (new)
 
-Notes
-- Respects Clean Architecture
-- Async end-to-end, validation + logging included
+Checklist:
+- [x] No cross-module dependencies
+- [x] Uses IRepository (not DbContext)
+- [x] Registered via [Service] attribute
 ```
 
 ---
 
-## 11) Agent Mode: Multi‑Step Tasks (Labs/Exercises)
-> Use this when executing a lab or implementing a feature end-to-end.
-
-**Agent prompt template:**
-```
-Goal: <short goal>
-Constraints: respect layering; do not modify Generated/ThirdParty; async only; add tests.
-Steps:
-1) <step>
-2) <step>
-3) <step>
-Deliverables: list changed files, build passes, tests added and green.
-```
-
-**Acceptance checklist (Agent should self-check):**
-- [ ] Build succeeds (`dotnet build`)
-- [ ] New/changed public APIs have tests
-- [ ] Validation + error handling present
-- [ ] No boundary violations (Core ↔ Infrastructure)
-- [ ] No secrets, no hardcoded connection strings
-
----
-## 12) Performance & Resilience Hints
-- Use cancellation tokens for all I/O.
-- Add Polly policies at HTTP/DB/messaging boundaries as appropriate.
-- Avoid synchronous over async calls.
+## Quick Reference
+| Task | Pattern |
+|------|---------|
+| Add service | `[Service(typeof(IFoo))]` on implementation in `*.Services/` |
+| Read data | Inject `IRepository`, use `GetEntities<T>()` |
+| Write data | `using var uof = repository.CreateUnitOfWork()` |
+| Add module | Create folder under `Modules/`, add to `Program.cs` `.AddPlugin()` |
+| Console command | Implement `IConsoleCommand` in `*.ConsoleCommands/` |
+| Share types | Add to `Modules/Contracts/{Module}/` (interfaces/DTOs only) |
 
 ---
 
-## 13) If You’re Unsure (Copilot)
-- Ask a single clarifying question with the minimal diff you can produce safely.
-- Prefer adapters, ports, or extension methods over changing existing contracts.
-
----
-
-## 14) Local Overrides
-If this repository provides a `.github/copilot-exclude.yml`, treat those paths as **off-limits for context** and avoid proposing changes there.
-
----
+## Tests
+- Unit tests in corresponded test project named as `{Assembly}.UnitTests` example: `Infra/AppBoot.UnitTests` (xUnit)
+- Test plugin loading with `AssembliesLoaderTests.cs` examples
+- Run: `dotnet test`

@@ -55,3 +55,14 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Ignore all VS Code folder contents, then allow shared project files
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Ignore personal/machine state
+.vscode/*.code-workspace
+.vscode/workspaceStorage/
+.vscode/.history/
