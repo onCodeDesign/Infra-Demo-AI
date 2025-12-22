@@ -58,6 +58,7 @@ nunit-*.xml
 
 # Ignore all VS Code folder contents, then allow shared project files
 .vscode/*
+!.vscode/mcp.json
 !.vscode/settings.json
 !.vscode/extensions.json
 !.vscode/launch.json
