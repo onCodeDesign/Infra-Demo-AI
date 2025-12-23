@@ -49,7 +49,7 @@ As a business user, I want to see all customers that have at least one overdue o
 - Properties:
   - `CustomerName` (string): Display name of the customer
   - `OverdueOrdersCount` (int): Number of overdue orders
-  - `OldestOverdueDueDate` (DateTime): Date of the oldest overdue order
+  - `OldestDueDate` (DateTime): Date of the oldest overdue order
 
 ### Console Commands
 
@@ -70,7 +70,7 @@ As a business user, I want to see all customers that have at least one overdue o
 - `SalesOrderHeader` entity (Sales.DataModel.SalesLT) - already exists
 - Relationship: `Customer.SalesOrderHeaders` navigation property - already exists
 
-**Status Field**: The `SalesOrderHeader.Status` field is of type `byte`. The specific value(s) representing "closed" status need to be determined from business logic or constants.
+**Status Field**: The `SalesOrderHeader.Status` field is of type `byte`. The existing `SalesOrderHeaderStatusValues` class (Sales.DataModel/Values/SalesOrderHeaderStatusValues.cs) defines status constants (InProcess=1, Approved=2, Backordered=3, Rejected=4, Shipped=5, Cancelled=6). For the overdue order definition, orders with status Shipped (5) or Cancelled (6) should be considered "closed" and excluded from the overdue list.
 
 ## Integration Flow
 
@@ -114,12 +114,12 @@ sequenceDiagram
 - [x] New interface extension added to `Contracts` (ICustomerService)
 - [x] Entity interceptors not needed for read-only operation
 - [x] Services use primary constructors for DI (existing pattern)
-- [x] All public APIs are async (Note: Current codebase uses synchronous patterns for customer queries - maintaining consistency)
+- [ ] All public APIs are async (Current implementation uses synchronous patterns for customer queries to stay consistent with existing `CustomerService` methods. This API must be refactored to async when the rest of `CustomerService` is migrated to async.)
 
 ## Design Decisions
 
 ### Status Value for "Closed"
-The design assumes a constant or configuration will define which `Status` value(s) represent "closed" orders. Implementation will need to determine this from existing codebase patterns or business requirements.
+The implementation will use the existing `SalesOrderHeaderStatusValues` class (Sales.DataModel/Values/SalesOrderHeaderStatusValues.cs) to determine "closed" orders. Orders with status Shipped (5) or Cancelled (6) are considered closed and will be excluded from overdue calculations. The query logic should reference these constants rather than using magic numbers.
 
 ### Customer Name Display
 The `Customer` entity has `FirstName`, `LastName`, and `CompanyName` fields. The display name logic will:
@@ -128,7 +128,7 @@ The `Customer` entity has `FirstName`, `LastName`, and `CompanyName` fields. The
 
 ### Query Efficiency
 The query uses a single database call with:
-- Navigation property to load related orders
+- Navigation property used in database query to filter and aggregate orders
 - Filter applied at database level
 - Aggregations performed in database (via LINQ to Entities)
 - Projection to DTO to minimize data transfer
