@@ -81,6 +81,11 @@ Not Required - Business logic is simple enough to implement directly in `Custome
 - Closed status values: `Shipped` (5), `Cancelled` (6)
 - Overdue filter: `Status` NOT IN (5, 6) AND `DueDate` < Today
 
+**CustomerName Construction Logic**:
+1. If `CompanyName` is not null or whitespace: use `CompanyName`
+2. Else: use `$"{FirstName} {LastName}".Trim()`
+3. If result is empty/null: use `$"Customer {CustomerID}"`
+
 ### Entity Interceptors
 
 Not Required - No calculated fields or business logic needs to be applied globally to entities for this feature.
@@ -174,7 +179,9 @@ Not Required - Unit tests with in-memory repository or mocked `IRepository` are 
 **Phase 3: Console Command** (0.25 day)
 - [ ] Create `ShowCustomersWithOverdueOrdersConsoleCommand` in `Sales.ConsoleCommands/`
 - [ ] Implement `IConsoleCommand` interface with `[Service]` attribute
-- [ ] Format output for console display using `IConsole.WriteEntity()`
+- [ ] Set `MenuLabel` property to "Show customers with overdue orders"
+- [ ] Format output for console display using `IConsole.WriteEntity()` for each result
+- [ ] Display "No customers with overdue orders found." when results are empty
 
 **Phase 4: Testing** (0.5 day)
 - [ ] Write unit tests in `Sales.Services.UnitTests/CustomerServiceTests.cs`
