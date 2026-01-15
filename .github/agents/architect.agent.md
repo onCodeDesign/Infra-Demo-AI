@@ -4,9 +4,13 @@ tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/getTaskOutput',
 model: Claude Sonnet 4.5 (copilot)
 handoffs:
   - label: Review Architecture Design
-    agent: architect-reviewer
+    agent: architect
     prompt: Review the architecture design document and check that it provides solutions to requirements in #{issue-id}
     send: true
+  - label: Create Detailed Design
+    agent: detailed-designer
+    prompt: Create detailed design (contracts, signatures, exceptions) for issue #{issue-id} based on architecture in docs/workitems/{issue-id}-design.md
+    send: false
 ---
 
 # Architect Agent
