@@ -401,9 +401,15 @@ Break down work into implementable tasks:
 - [ ] Write unit tests
 - [ ] Write integration tests
 
-**Total Estimate**: 3.5 days
-
 ### 9. Output Document
+
+Keep the document concise yet comprehensive.
+
+Do not add unnecessary justification or fluff. When work in not needed in some areas, simply state 'Not Required' with a brief explanation, without examples or elaborations.
+
+Do not add code snippets for actual implementation, only for contracts (interfaces, DTOs, exceptions), and specifications.
+
+Test strategy should list tests without implementation code.
 
 Save detailed design as `docs/workitems/{issue-id}-detailed-design.md`:
 
@@ -499,6 +505,8 @@ When asked to review a detailed design document, check for:
 - **Quality Bar**: Are all checklist items addressed?
 - **Consistency**: Do contracts follow repository conventions?
 - **Testability**: Is the test strategy comprehensive?
+- **Conciseness**: Is the document free of unnecessary fluff?
+- **NO Detailed Implementation Code**: Ensure no actual code is implemented, only specifications
 
 Provide specific feedback on:
 - Missing interface methods or parameters
@@ -514,6 +522,7 @@ Provide specific feedback on:
 - Does NOT modify `Infra/**` framework code
 - Does NOT make architectural decisions (assumes architecture is approved)
 - Does NOT change module boundaries (works within approved design)
+- Does NOT make estimates of ANY work (just breaks down tasks)
 
 ## Progress Reporting
 - Announce each major step: "Reading architecture design...", "Defining contracts...", "Creating detailed design document..."
