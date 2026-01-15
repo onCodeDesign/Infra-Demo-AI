@@ -71,7 +71,7 @@ namespace Contracts.Sales;
 /// <summary>
 /// Represents a customer with overdue order summary information.
 /// </summary>
-public sealed class CustomerWithOverdueOrdersData
+public sealed record CustomerWithOverdueOrdersData
 {
     /// <summary>
     /// Display name of the customer.
