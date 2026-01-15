@@ -194,9 +194,9 @@ Not Required - Sufficient coverage with unit tests using in-memory repository. F
 
 **Phase 2: Service Implementation** (1 day)
 - [ ] Implement `GetCustomersWithOverdueOrders()` in `Sales.Services/CustomerService.cs`
-- [ ] Use `repository.GetEntities<Customer>()` with Include for `SalesOrderHeaders`
+- [ ] Use `repository.GetEntities<Customer>()` and navigate `SalesOrderHeaders` via LINQ (no explicit `Include`)
 - [ ] Filter orders: `DueDate < DateTime.Today` AND `Status != Shipped AND Status != Cancelled`
-- [ ] Group by customer, calculate count and min(DueDate)
+- [ ] Use database-level aggregations with `Count()` and `Min()` directly in projection (avoid `.ToList()`)
 - [ ] Order by min(DueDate) ascending
 - [ ] Project to `CustomerWithOverdueOrdersData` with name logic: `CompanyName ?? $"{FirstName} {LastName}"`
 - [ ] Reference `SalesOrderHeaderStatusValues.Shipped` and `SalesOrderHeaderStatusValues.Cancelled` constants
@@ -240,22 +240,21 @@ repository.GetEntities<Customer>()
     .Where(c => c.SalesOrderHeaders.Any(o => 
         o.DueDate < today && 
         !closedStatuses.Contains(o.Status)))
-    .Select(c => new
+    .Select(c => new CustomerWithOverdueOrdersData
     {
-        Customer = c,
-        OverdueOrders = c.SalesOrderHeaders
+        CustomerName = c.CompanyName ?? $"{c.FirstName} {c.LastName}",
+        OverdueOrdersCount = c.SalesOrderHeaders
             .Where(o => o.DueDate < today && !closedStatuses.Contains(o.Status))
-            .ToList()
-    })
-    .Select(x => new CustomerWithOverdueOrdersData
-    {
-        CustomerName = x.Customer.CompanyName ?? $"{x.Customer.FirstName} {x.Customer.LastName}",
-        OverdueOrdersCount = x.OverdueOrders.Count,
-        OldestDueDate = x.OverdueOrders.Min(o => o.DueDate)
+            .Count(),
+        OldestDueDate = c.SalesOrderHeaders
+            .Where(o => o.DueDate < today && !closedStatuses.Contains(o.Status))
+            .Min(o => o.DueDate)
     })
     .OrderBy(x => x.OldestDueDate)
     .ToArray();
 ```
+
+**Note**: The overdue order filter is repeated in the projection for `OverdueOrdersCount` and `OldestDueDate`. While this appears duplicative, it's necessary for EF Core to translate the aggregations correctly to SQL. The filter in the initial `Where` clause ensures only customers with overdue orders are included. An alternative would be to extract the filter logic to a variable for better maintainability if needed during implementation.
 
 ### Console Command Display Logic
 
