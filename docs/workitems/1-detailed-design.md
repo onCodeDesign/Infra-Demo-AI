@@ -207,7 +207,17 @@ _logger.LogInformation("Retrieving customers with overdue orders");
 _logger.LogInformation("Found {Count} customers with overdue orders", result.Length);
 ```
 
-**No Debug/Trace Logging Needed**: Query is simple enough that INFO-level logging provides sufficient observability.
+**Debug Logging for Query Performance** (recommended during initial deployment):
+```csharp
+_logger.LogDebug("Executing overdue orders query with cutoff date: {Today}", DateTime.Today);
+var stopwatch = Stopwatch.StartNew();
+var result = query.ToArray();
+stopwatch.Stop();
+_logger.LogDebug("Query completed in {ElapsedMs}ms, returned {Count} customers", 
+    stopwatch.ElapsedMilliseconds, result.Length);
+```
+
+**Rationale**: While INFO-level logging provides sufficient observability for normal operation, DEBUG logging can help troubleshoot query performance issues during initial deployment and identify any database-level bottlenecks.
 
 **Error Logging**: Not needed in service - infrastructure layer logs unhandled exceptions.
 
@@ -246,7 +256,23 @@ No special idempotency handling required.
 
 **Test Project**: `Modules/Sales/Sales.Services.UnitTests/CustomerServiceTests.cs`
 
-**Note**: Current repository has no test infrastructure for Services. If test project doesn't exist, create it following xUnit conventions.
+**Test Infrastructure Setup**:
+- **If test project doesn't exist**: Create new xUnit test project with structure:
+  ```
+  Modules/Sales/Sales.Services.UnitTests/
+  ├── Sales.Services.UnitTests.csproj
+  ├── CustomerServiceTests.cs
+  └── (other test files)
+  ```
+- **Required NuGet packages**:
+  - `xunit` (latest stable)
+  - `xunit.runner.visualstudio` (latest stable)
+  - `Moq` (for mocking IRepository)
+  - `Microsoft.NET.Test.Sdk` (latest stable)
+- **Project references**:
+  - Reference `Sales.Services` project
+  - Reference `Contracts` for DTOs
+  - Reference `DataAccess` for IRepository interface
 
 #### Test Cases
 
@@ -317,6 +343,21 @@ public class CustomerServiceTests
         
         // Assert
         Assert.Equal("Jane Smith", result[0].CustomerName);
+    }
+    
+    [Fact]
+    public void GetCustomersWithOverdueOrders_HandlesEmptyNames_WhenAllNamesAreEmpty()
+    {
+        // Arrange: Customer with all name fields empty or whitespace
+        // - CompanyName = null or whitespace
+        // - FirstName = ""
+        // - LastName = ""
+        
+        // Act
+        var result = _customerService.GetCustomersWithOverdueOrders();
+        
+        // Assert
+        Assert.Equal("", result[0].CustomerName.Trim()); // Results in empty string after trim
     }
     
     // Edge Case Tests
@@ -549,8 +590,9 @@ public class CustomersWithOverdueOrdersConsoleCommandTests
           })
           .Select(x => new CustomerWithOverdueOrdersData
           {
-              CustomerName = x.Customer.CompanyName ?? 
-                            $"{x.Customer.FirstName} {x.Customer.LastName}",
+              CustomerName = !string.IsNullOrWhiteSpace(x.Customer.CompanyName) 
+                  ? x.Customer.CompanyName 
+                  : $"{x.Customer.FirstName} {x.Customer.LastName}".Trim(),
               OverdueOrdersCount = x.OverdueOrders.Count,
               OldestDueDate = x.OverdueOrders.Min(o => o.DueDate)
           })
@@ -559,6 +601,11 @@ public class CustomersWithOverdueOrdersConsoleCommandTests
       return query.ToArray();
   }
   ```
+  
+  **Edge Case Handling**:
+  - Uses `!string.IsNullOrWhiteSpace()` to properly check CompanyName
+  - `.Trim()` on name concatenation handles cases where both FirstName and LastName might be empty strings
+  - If all name fields are empty/whitespace, result will be empty string (database validation should prevent this scenario)
 - **Validation**: 
   - Unit tests pass
   - Query translates to SQL correctly (verify with logging)
@@ -615,7 +662,7 @@ public class CustomersWithOverdueOrdersConsoleCommandTests
 
 **Task 4.1**: Write unit tests for `CustomerService`
 - **File**: `Modules/Sales/Sales.Services.UnitTests/CustomerServiceTests.cs` (new or extend)
-- **Changes**: Add 10 test cases covering happy path and edge cases
+- **Changes**: Add 11 test cases covering happy path and edge cases (including empty names scenario)
 - **Dependencies**: Task 2.1
 - **Validation**: All tests pass
 
@@ -687,8 +734,8 @@ public class CustomersWithOverdueOrdersConsoleCommandTests
 - [x] **Data Model**: All entities identified, no new entities or migrations required
 - [x] **Entity Interceptors**: Not applicable - read-only operation
 - [x] **Cross-Cutting Concerns**: Error handling, logging, and security addressed
-- [x] **Edge Cases**: Empty results, null handling, closed orders, future orders all specified
-- [x] **Test Strategy**: 13 test cases defined covering unit, integration, and acceptance criteria
+- [x] **Edge Cases**: Empty results, null handling, closed orders, future orders, empty names all specified
+- [x] **Test Strategy**: 14 test cases defined covering unit, integration, and acceptance criteria
 - [x] **Implementation Plan**: 5 phases with 12 tasks, estimated at 3.5 days
 - [x] **Architecture Compliance**: Follows dependency rules, uses IRepository, no cross-module refs
 - [x] **Minimal Ambiguity**: Implementation details clear enough to code without questions
