@@ -1,8 +1,8 @@
 # Design: Show customers with overdue orders
 
 **Issue**: #1  
-**Date**: December 22, 2025  
-**Status**: Awaiting Review
+**Date**: January 15, 2026  
+**Status**: Approved
 
 ## Requirements Summary
 
@@ -19,11 +19,15 @@ Display customers with at least one overdue order via a console command. An orde
 
 ## High-Level Design
 
+### Contracts
+
+**ICustomerService** (extend in `Modules/Contracts/Sales/ICustomerService.cs`)
+- Add method: `Task<CustomerOverdueOrdersData[]> GetCustomersWithOverdueOrdersAsync()`
+
 ### Services
 
-**ICustomerService** (extend existing in `Sales.Services/CustomerService.cs`)
-- Add method to query customers with overdue orders
-- Returns customer details including aggregated overdue order information
+**CustomerService** (extend existing in `Sales.Services/CustomerService.cs`)
+- Implement new method to query customers with overdue orders
 - Responsibilities: Execute query logic against `IRepository`, aggregate data, map to DTO
 
 ### DTOs
@@ -42,11 +46,10 @@ Display customers with at least one overdue order via a console command. An orde
 ### Data Access Pattern
 
 Read-only query via `IRepository`:
-- Query `SalesOrderHeader` entities with includes for `Customer` navigation property
-- Filter: `DueDate < DateTime.UtcNow` AND `Status != closedStatusValue`
-- Group by `Customer`
-- Calculate: count of orders per customer, minimum (oldest) `DueDate`
-- Order by: oldest `DueDate` ascending
+- Query `SalesOrderHeader` with related Customer data
+- Filter by due date and status (overdue and not closed)
+- Aggregate: count of orders per customer and oldest overdue date
+- Sort by oldest overdue date ascending
 
 ### Integration Flow
 
@@ -89,11 +92,13 @@ sequenceDiagram
 **Extend ICustomerService vs Create New Service:**  
 Chose to extend existing `ICustomerService` because querying customer data with order-related filters maintains high cohesion. This is a customer-centric query, not an order-centric one.
 
-**Status Field Interpretation:**  
-Assumption: `Status` field in `SalesOrderHeader` uses numeric values where specific values represent "closed" orders. Implementation will need clarification on which status value(s) indicate closed orders (e.g., `Status == 5` or similar).
-
 **Query Performance:**  
-For large datasets, the query might benefit from database-side aggregation. The design uses LINQ which will translate to efficient SQL via EF Core's query provider.
+For large datasets, the query will leverage EF Core's query provider to translate LINQ to efficient SQL with database-side aggregation.
+
+## Open Questions
+
+**Status Field Interpretation:**  
+Which numeric value(s) in the `Status` field of `SalesOrderHeader` represent "closed" orders? Need domain knowledge or database investigation to determine the correct filter value(s).
 
 ## Next Steps
 
