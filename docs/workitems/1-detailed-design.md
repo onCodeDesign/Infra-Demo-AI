@@ -142,6 +142,8 @@ Not applicable - Read-only query operation is naturally idempotent.
 
 **CustomerServiceTests** (`Modules/Sales/Sales.Services.UnitTests/CustomerServiceTests.cs`)
 
+**Note**: The `Sales.Services.UnitTests` project does not currently exist and will need to be created as part of the implementation (see Phase 4 below).
+
 ```
 GetCustomersWithOverdueOrders_WithNoCustomers_ReturnsEmptyArray
 GetCustomersWithOverdueOrders_WithNoOverdueOrders_ReturnsEmptyArray
@@ -208,7 +210,8 @@ Not Required - Sufficient coverage with unit tests using in-memory repository. F
 - [ ] Display results using `console.WriteEntity()` or formatted output
 
 **Phase 4: Testing** (1 day)
-- [ ] Create `Sales.Services.UnitTests` project if not exists
+- [ ] Create `Sales.Services.UnitTests` project with xUnit.v3 package reference (project does not exist yet)
+- [ ] Add project reference to `Sales.Services` and test framework dependencies
 - [ ] Write unit tests for `GetCustomersWithOverdueOrders()` covering all scenarios
 - [ ] Mock `IRepository` to return test data with various order statuses and due dates
 - [ ] Verify sorting, filtering, and aggregation logic
@@ -224,6 +227,8 @@ Not Required - Sufficient coverage with unit tests using in-memory repository. F
 ### Service Method Signature
 
 ```csharp
+using Sales.DataModel.Values;
+
 public CustomerWithOverdueOrdersData[] GetCustomersWithOverdueOrders()
 {
     var today = DateTime.Today;
