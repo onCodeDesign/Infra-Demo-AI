@@ -46,6 +46,11 @@ You can invoke this agent using these templates:
 @detailed-designer Review the detailed design for issue #[NUMBER] from file docs/workitems/[NUMBER]-detailed-design.md
 ```
 
+**Apply Review Remarks Selectively:**
+```
+@detailed-designer For each remark in the review of issue #[NUMBER] detailed design: validate if it aligns with architecture rules, assess if it adds value, then apply with justification or reject with reasoning. Format as: Remark #X | Decision: ✅/❌ | Reason | Changes.
+```
+
 Usage examples:
 - `@detailed-designer Create detailed design for issue #456`
 - `@detailed-designer Analyze #789 and create implementable specifications`
@@ -373,29 +378,29 @@ Map tests to requirements:
 
 ### 8. Implementation Plan
 
-Break down work into implementable tasks:
+Break down work into implementable tasks (NEVER provide time estimates):
 
-**Phase 1: Contracts & DTOs** (0.5 day)
+**Phase 1: Contracts & DTOs**
 - [ ] Create `IOrderingService` in `Modules.Contracts.Sales`
 - [ ] Create DTOs: `CreateOrderDto`, `OrderDetailsDto`, `OrderLineDto`
 - [ ] Create exception types: `OrderValidationException`, `ProductNotFoundException`
 
-**Phase 2: Data Model** (0.5 day)
+**Phase 2: Data Model**
 - [ ] Create/update `SalesOrderHeader` entity in `Sales.DataModel`
 - [ ] Create/update `SalesOrderDetail` entity in `Sales.DataModel`
 - [ ] Add database migration
 
-**Phase 3: Service Implementation** (1 day)
+**Phase 3: Service Implementation**
 - [ ] Implement `OrderingService` in `Sales.Services`
 - [ ] Implement `OrderValidator` (internal)
 - [ ] Register services with `[Service]` attribute
 
-**Phase 4: Interceptor & Cross-Cutting** (0.5 day)
+**Phase 4: Interceptor & Cross-Cutting**
 - [ ] Implement `SalesOrderCalculationsInterceptor`
 - [ ] Add logging throughout service
 - [ ] Add error handling with proper exceptions
 
-**Phase 5: Integration & Testing** (1 day)
+**Phase 5: Integration & Testing**
 - [ ] Wire up `IProductService` dependency
 - [ ] Wire up `INotificationService` dependency
 - [ ] Write unit tests
@@ -408,6 +413,8 @@ Keep the document concise yet comprehensive.
 Do not add unnecessary justification or fluff. When work in not needed in some areas, simply state 'Not Required' with a brief explanation, without examples or elaborations.
 
 Do not add code snippets for actual implementation, only for contracts (interfaces, DTOs, exceptions), and specifications.
+
+Avoid including LINQ queries or other implementation details such as service method bodies or data access patterns.
 
 Test strategy should list tests without implementation code.
 
@@ -478,7 +485,7 @@ Save detailed design as `docs/workitems/{issue-id}-detailed-design.md`:
 [Requirement-to-test mapping]
 
 ## Implementation Plan
-[Phased task breakdown with estimates]
+[Phased task breakdown - NO time estimates]
 
 ## Quality Checklist
 - [ ] All interfaces have explicit signatures
