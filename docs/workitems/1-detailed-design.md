@@ -86,6 +86,16 @@ Not Required - Business logic is simple enough to implement directly in `Custome
 2. Else: use `$"{FirstName} {LastName}".Trim()`
 3. If result is empty/null: use `$"Customer {CustomerID}"`
 
+**Query Logic Specification**:
+1. Filter `SalesOrderHeader` where `DueDate < DateTime.Today` AND `Status` NOT IN (5, 6)
+2. Include navigation to `Customer` entity
+3. Group filtered orders by `Customer`
+4. For each customer group, project to `CustomerOverdueOrdersData`:
+   - `CustomerName`: Apply construction logic above
+   - `OverdueOrderCount`: Count of orders in group
+   - `OldestOverdueOrderDate`: Minimum `DueDate` in group
+5. Order results by `OldestOverdueOrderDate` ascending
+
 ### Entity Interceptors
 
 Not Required - No calculated fields or business logic needs to be applied globally to entities for this feature.
@@ -180,7 +190,8 @@ Not Required - Unit tests with in-memory repository or mocked `IRepository` are 
 - [ ] Create `ShowCustomersWithOverdueOrdersConsoleCommand` in `Sales.ConsoleCommands/`
 - [ ] Implement `IConsoleCommand` interface with `[Service]` attribute
 - [ ] Set `MenuLabel` property to "Show customers with overdue orders"
-- [ ] Format output for console display using `IConsole.WriteEntity()` for each result
+- [ ] Format output as table with columns: Customer Name, Overdue Orders Count, Oldest Overdue Date
+- [ ] Use `IConsole.WriteEntity()` for structured output of each `CustomerOverdueOrdersData` result
 - [ ] Display "No customers with overdue orders found." when results are empty
 
 **Phase 4: Testing** (0.5 day)
@@ -189,7 +200,7 @@ Not Required - Unit tests with in-memory repository or mocked `IRepository` are 
 
 ## Quality Checklist
 - [x] All interfaces have explicit signatures
-- [x] All DTOs have validation attributes (not needed for read-only DTO)
+- [x] All DTOs have validation attributes (N/A - output-only DTO)
 - [x] All exceptions are documented (none needed for this feature)
 - [x] Error handling is specified
 - [x] Cross-cutting concerns are addressed
