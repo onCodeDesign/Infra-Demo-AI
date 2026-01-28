@@ -7,6 +7,10 @@ handoffs:
     agent: detailed-designer
     prompt: Review the detailed design document and verify it provides complete implementable specifications for #{issue-id}
     send: true
+  - label: Start Implementation
+    agent: coder
+    prompt: Implement the detailed design for issue #{issue-id} based on docs/workitems/{issue-id}-detailed-design.md
+    send: false
 ---
 
 # Detailed Designer Agent
