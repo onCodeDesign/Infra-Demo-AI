@@ -696,6 +696,13 @@ public sealed class OrderingServiceTests
 }
 ```
 
+NERVER create unit tests for functions without logic - functions that do not contain if, switch, loops, try/catch, or any other control flow statements.
+NEVER create unit tests for these assemblies types:
+  - `*.Contracts`
+  - `*.DataModel`
+  - `*.DbContext`
+
+
 ### 5. Build & Verify (MANDATORY)
 **CRITICAL**: These steps are NOT optional - they MUST be performed:
 
