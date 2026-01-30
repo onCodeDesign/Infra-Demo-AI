@@ -5,7 +5,7 @@ version: 1.0.0
 language: C#
 framework: .NET 10.0
 dependencies: xUnit, NSubstitute, FluentAssertions
-pattern: Arrange-Act-Assert, Test Doubles
+pattern: Arrange-Act-Assert, Test Doubles, Mocks and Stubs
 ---
 
 # Unit Test Generator
@@ -51,27 +51,26 @@ src/
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="6.12.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="NSubstitute" Version="5.1.0" />
-    <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.16">
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="xunit" Version="2.6.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>    
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\{Module}.{AssemblyName}\{Module}.{AssemblyName}.csproj" />
-    <ProjectReference Include="..\Sales.DataModel\Sales.DataModel.csproj" />
+    <ProjectReference Include="..\{Module}.DataModel\{Module}.DataModel.csproj" />
+    <ProjectReference Include="..\..\Contracts\Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Infra\DataAccess\DataAccess.csproj" />
   </ItemGroup>
 
 </Project>
@@ -79,281 +78,203 @@ src/
 
 ---
 
-## Template: Base Test Class
+## Template: Unit Test Class
 
 ```csharp
-// tests/{name}.Application.UnitTests/Abstractions/BaseTest.cs
-using NSubstitute;
-using {name}.domain.abstractions;
-
-namespace {name}.Application.UnitTests.Abstractions;
-
-public abstract class BaseTest
-{
-    protected static CancellationToken CancellationToken => CancellationToken.None;
-
-    /// <summary>
-    /// Creates a mock that returns the provided result
-    /// </summary>
-    protected static T CreateMock<T>() where T : class
-    {
-        return Substitute.For<T>();
-    }
-
-    /// <summary>
-    /// Helper to create a successful Result
-    /// </summary>
-    protected static Result<T> SuccessResult<T>(T value)
-    {
-        return Result.Success(value);
-    }
-
-    /// <summary>
-    /// Helper to create a failed Result
-    /// </summary>
-    protected static Result<T> FailureResult<T>(Error error)
-    {
-        return Result.Failure<T>(error);
-    }
-}
-```
-
----
-
-
----
-
-## Template: Domain Entity Tests
-
-```csharp
-// tests/{name}.Domain.UnitTests/{Aggregate}/{Entity}Tests.cs
+// filepath: Modules/{Module}/{Module}.{AssemblyName}.UnitTests/{Class}Tests.cs
+using DataAccess;
 using FluentAssertions;
-using {name}.domain.{aggregate};
-using {name}.domain.{aggregate}.events;
+using {Module}.DataModel;
+using Contracts.{Module};
 
-namespace {name}.Domain.UnitTests.{Aggregate};
+namespace {Module}.{AssemblyName}.UnitTests;
 
-public sealed class {Entity}Tests
+public class {Class}Tests
 {
-    // ═══════════════════════════════════════════════════════════════
-    // CREATE TESTS
-    // ═══════════════════════════════════════════════════════════════
-
+    // ==================== EMPTY/EDGE CASE ====================
+    
     [Fact]
-    public void Create_Should_ReturnSuccess_When_ValidParameters()
+    public void {Method}_{EmptyInputScenario}_{ExpectedBehavior}()
     {
         // Arrange
-        var name = "Test Entity";
-        var description = "Test Description";
-        var organizationId = Guid.NewGuid();
-
+        var sut = GetTarget({emptyInputData}, {emptyDependencyData});
+        
         // Act
-        var result = {Entity}.Create(name, description, organizationId);
-
+        var result = sut.{Method}();
+        
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Name.Should().Be(name);
-        result.Value.OrganizationId.Should().Be(organizationId);
-        result.Value.IsActive.Should().BeTrue();
+        Assert{ExpectedCondition}(result);
     }
-
+    
+    // ==================== SIMPLE CASE - ASSERT ON RESULT ====================
+    
     [Fact]
-    public void Create_Should_ReturnFailure_When_NameIsEmpty()
+    public void {Method}_{SimpleCaseScenario}_{ReturnsExpectedResult}()
     {
         // Arrange
-        var name = string.Empty;
-        var description = "Test Description";
-        var organizationId = Guid.NewGuid();
-
+        var {inputItem} = Create{Entity}({testData});
+        var sut = GetTarget(new[] { {inputItem} }, {dependencyData});
+        
         // Act
-        var result = {Entity}.Create(name, description, organizationId);
-
+        var result = sut.{Method}();
+        
         // Assert
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be({Entity}Errors.NameRequired);
+        Assert.Equal({expectedValue}, result.{Property1});
+        Assert.Equal({expectedValue}, result.{Property2});
     }
-
+    
+    // ==================== SINGLE ITEM - ASSERT ON MOCK ====================
+    
     [Fact]
-    public void Create_Should_RaiseDomainEvent_When_Success()
+    public void {Method}_{SimpleCaseScenario}_{PerformsExpectedAction}()
     {
         // Arrange
-        var name = "Test Entity";
-        var description = "Test Description";
-        var organizationId = Guid.NewGuid();
-
+        var {mockDependency} = new Fake{Dependency}({initialData});
+        var {inputItem} = Create{Entity}({testData});
+        var sut = GetTarget(new[] { {inputItem} }, {mockDependency});
+        
         // Act
-        var result = {Entity}.Create(name, description, organizationId);
-
+        sut.{Method}();
+        
         // Assert
-        result.Value.GetDomainEvents()
-            .Should().ContainSingle()
-            .Which.Should().BeOfType<{Entity}CreatedDomainEvent>();
+        Assert.Contains({mockDependency}.Get{TrackedEntities}<{EntityType}>(),
+            e => e.{Property1} == {expectedValue} && e.{Property2} == {expectedValue});
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // UPDATE TESTS
-    // ═══════════════════════════════════════════════════════════════
-
+    
+    // ==================== COMPLEX SCENARIO - FLUENT ASSERTIONS ====================
+    
     [Fact]
-    public void UpdateName_Should_ReturnSuccess_When_ValidName()
+    public void {Method}_{ComplexScenario}_{PerformsExpectedActions}()
     {
         // Arrange
-        var entity = Create{Entity}();
-        var newName = "Updated Name";
-
+        var {mockDependency} = new Fake{Dependency}({initialData});
+        var {inputItems} = new[]
+        {
+            Create{Entity}({testData1}),
+            Create{Entity}({testData2}),
+            Create{Entity}({testData3})
+        };
+        var sut = GetTarget({inputItems}, {mockDependency});
+        
         // Act
-        var result = entity.UpdateName(newName);
-
+        sut.{Method}();
+        
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        entity.Name.Should().Be(newName);
+        {mockDependency}.Get{TrackedEntities}<{EntityType}>().Should().BeEquivalentTo(new[]
+            {
+                new {EntityType} { {Property1} = {value1}, {Property2} = {value2} },
+                new {EntityType} { {Property1} = {value3}, {Property2} = {value4} },
+                new {EntityType} { {Property1} = {value5}, {Property2} = {value6} }
+            },
+            options => options
+                .Including(e => e.{Property1})
+                .Including(e => e.{Property2})
+        );
     }
-
+    
+    // ==================== COMPLEX SCENARIO - ASSERT ON RESULT ====================
+    
     [Fact]
-    public void UpdateName_Should_ReturnFailure_When_EmptyName()
+    public void {Method}_{ComplexScenario}_{ReturnsExpectedResult}()
     {
         // Arrange
-        var entity = Create{Entity}();
-
+        var {inputItems} = new[]
+        {
+            Create{Entity}({testData1}),
+            Create{Entity}({testData2}),
+            Create{Entity}({testData3})
+        };
+        var sut = GetTarget({inputItems}, {dependencyData});
+        
         // Act
-        var result = entity.UpdateName(string.Empty);
-
+        var result = sut.{Method}();
+        
         // Assert
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be({Entity}Errors.NameRequired);
+        Assert.Equal({expectedCount}, result.{CountProperty});
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // DEACTIVATE TESTS
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void Deactivate_Should_SetIsActiveToFalse()
+    
+    // ==================== GETTARGET HELPERS ====================
+    
+    // Primary overload - accepts test data arrays, creates fakes internally
+    private static {Class} GetTarget({InputType}[] {inputData}, {DependencyDataType}[] {dependencyData})
+        => GetTarget(new Fake{Dependency1}({inputData}), new Fake{Dependency2}({dependencyData}));
+    
+    // Overload - accepts pre-built mock for assertion
+    private static {Class} GetTarget({InputType}[] {inputData}, Fake{Dependency2} {mockDependency})
+        => GetTarget(new Fake{Dependency1}({inputData}), {mockDependency});
+    
+    // Core factory - accepts all fake instances
+    private static {Class} GetTarget(Fake{Dependency1} {dependency1}, Fake{Dependency2} {dependency2})
     {
-        // Arrange
-        var entity = Create{Entity}();
-        entity.IsActive.Should().BeTrue();
-
-        // Act
-        entity.Deactivate();
-
-        // Assert
-        entity.IsActive.Should().BeFalse();
+        return new {Class}({dependency1}, {dependency2});
     }
-
-    [Fact]
-    public void Deactivate_Should_RaiseDomainEvent()
+    
+    // ==================== TEST DATA BUILDERS ====================
+    
+    private static {EntityType} Create{Entity}({ParamType} {param1}, {ParamType} {param2}, {ParamType} {param3})
     {
-        // Arrange
-        var entity = Create{Entity}();
-        entity.ClearDomainEvents();  // Clear create event
-
-        // Act
-        entity.Deactivate();
-
-        // Assert
-        entity.GetDomainEvents()
-            .Should().ContainSingle()
-            .Which.Should().BeOfType<{Entity}DeactivatedDomainEvent>();
+        return new {EntityType}
+        {
+            {Property1} = {param1},
+            {Property2} = {param2},
+            {Property3} = {param3}
+        };
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // HELPER METHODS
-    // ═══════════════════════════════════════════════════════════════
-
-    private static {Entity} Create{Entity}()
+    
+    // ==================== ASSERTION HELPERS ====================
+    
+    private static void Assert{ConditionName}({ResultType} result)
     {
-        var result = {Entity}.Create(
-            "Test Entity",
-            "Test Description",
-            Guid.NewGuid());
-
-        return result.Value;
+        Assert.True(result.{Property1} == {expectedValue}
+            && result.{Property2} == {expectedValue}
+            && result.{Property3} == {expectedValue}
+            , "Expected {description}."
+        );
     }
 }
 ```
 
 ---
 
-## Template: Test Data Builders
+## Template: Fake Test Double (Stub + Mock)
+
+Handwritten fake class that can act as both stub (returns data) and mock (tracks interactions):
 
 ```csharp
-// tests/{name}.Application.UnitTests/TestData/{Entity}Builder.cs
-using {name}.application.{feature}.Create{Entity};
+// filepath: Modules/{Module}/{Module}.{AssemblyName}.UnitTests/Fakes/Fake{Dependency}.cs
+using {Module}.DataModel;
+using Contracts.{Module};
 
-namespace {name}.Application.UnitTests.TestData;
+namespace {Module}.{AssemblyName}.UnitTests.Fakes;
 
-public sealed class {Entity}CommandBuilder
+internal class Fake{Dependency} : I{Dependency}
 {
-    private string _name = "Default Name";
-    private string _description = "Default Description";
-    private Guid _organizationId = Guid.NewGuid();
-
-    public {Entity}CommandBuilder WithName(string name)
+    private readonly List<{EntityType}> _{initialData} = new();
+    private readonly List<{EntityType}> _{trackedEntities} = new();
+    
+    public Fake{Dependency}({EntityType}[] {initialData})
     {
-        _name = name;
-        return this;
+        _{initialData}.AddRange({initialData});
     }
-
-    public {Entity}CommandBuilder WithDescription(string description)
+    
+    // Stub behavior - returns canned data
+    public {ReturnType} {QueryMethod}()
     {
-        _description = description;
-        return this;
+        return _{initialData}.{TransformToReturnType}();
     }
-
-    public {Entity}CommandBuilder WithOrganizationId(Guid organizationId)
+    
+    // Mock behavior - tracks interactions
+    public void {CommandMethod}({EntityType} {entity})
     {
-        _organizationId = organizationId;
-        return this;
+        _{trackedEntities}.Add({entity});
     }
-
-    public Create{Entity}Command Build()
+    
+    // Test inspection method - for assertions
+    public IReadOnlyList<{EntityType}> Get{TrackedEntities}<T>() where T : {EntityType}
     {
-        return new Create{Entity}Command(_name, _description, _organizationId);
+        return _{trackedEntities}.OfType<T>().ToList();
     }
 }
-
-// Usage in tests:
-// var command = new {Entity}CommandBuilder()
-//     .WithName("Custom Name")
-//     .Build();
-```
-
----
-
-## NSubstitute Quick Reference
-
-```csharp
-// Create mock
-var repository = Substitute.For<IRepository>();
-
-// Setup return value
-repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-    .Returns(entity);
-
-// Setup return null
-repository.GetByIdAsync(entityId, CancellationToken)
-    .Returns((Entity?)null);
-
-// Verify method was called
-repository.Received(1).Add(Arg.Any<Entity>());
-
-// Verify method was NOT called
-repository.DidNotReceive().Add(Arg.Any<Entity>());
-
-// Verify with argument matching
-repository.Received().Add(Arg.Is<Entity>(e => e.Name == "Test"));
-
-// Verify call order (advanced)
-Received.InOrder(() =>
-{
-    repository.Add(Arg.Any<Entity>());
-    unitOfWork.SaveChangesAsync(CancellationToken);
-});
-
-// Setup to throw exception
-repository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-    .ThrowsAsync(new Exception("Database error"));
 ```
 
 ---
@@ -405,7 +326,7 @@ result.Error.Should().Be(ExpectedError);
 ## Critical Rules
 
 1. **One assert concept per test** - Focus on single behavior
-2. **Descriptive test names** - `Should_{ExpectedBehavior}_When_{Condition}`
+2. **Strict naming convention** - based on three parts `{MethodUnderTest}_{TestScenario}_{ExpectedBehavior}`
 3. **Arrange-Act-Assert** - Clear structure in every test
 4. **Mock only dependencies** - Don't mock the SUT
 5. **Test behavior, not implementation** - Focus on outcomes
@@ -414,32 +335,108 @@ result.Error.Should().Be(ExpectedError);
 8. **Fast tests** - No I/O, no database
 9. **Independent tests** - No shared state
 10. **Meaningful assertions** - Test what matters
+11. **Use GetTarget helpers** - Simplify SUT creation and reduce setup duplication
+12. **Use helpers for asserts** - Encapsulate complex assertions for readability
+13. **Remove duplication code in tests using helpers** - Keep tests clean and focused
 
 ---
 
 ## Anti-Patterns to Avoid
 
 ```csharp
-// ❌ WRONG: Multiple unrelated assertions
+// ❌ WRONG: Multiple assertions
 [Fact]
-public void Test_Everything()
+public void ImportPersonsAsCustomers_NoPersons_ReturnsZeroResults()
 {
-    // Tests too many things at once
-    result.IsSuccess.Should().BeTrue();
-    result.Value.Name.Should().Be("Test");
-    repository.Received(1).Add(Arg.Any<Entity>());
-    unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    // multiple calls to Assert and verify different behaviors -> hard to know what failed
+    Assert.Equal(0, result.TotalPersonsProcessed);
+    Assert.Equal(0, result.CustomersAdded);
+    Assert.Equal(0, result.CustomersUpdated);
+    Assert.Equal(0, result.CustomersSkipped);
 }
 
-// ✅ CORRECT: Focused tests
+// ✅ CORRECT: Use assertion helper
 [Fact]
-public void Handle_Should_ReturnSuccess_When_ValidRequest() { }
+public void ImportPersonsAsCustomers_NoPersons_ReturnsZeroResults()
+{
+    // single call to Assert helper -> clear what failed
+    AssertZeroResults(result);
+}
 
-[Fact]
-public void Handle_Should_AddEntity_When_ValidRequest() { }
+private static void AssertZeroResults(CustomerImportResult result)
+{
+    Assert.True(result.TotalPersonsProcessed == 0
+        && result.CustomersAdded == 0
+        && result.CustomersUpdated == 0
+        && result.CustomersSkipped == 0
+        , "Expected all result counts to be zero."
+        );
+}
 
+
+// ❌ WRONG: Asserting different implementation aspects
 [Fact]
-public void Handle_Should_CallSaveChanges_When_ValidRequest() { }
+public void ImportPersonsAsCustomers_NewPerson_AddsCustomer()
+{
+    var person = CreatePersonData(1, "John", "Doe", DateTime.UtcNow);
+    var personService = new FakePersonService([person]);
+    var repository = new FakeRepository([]);
+    var service = new CustomerImportService(personService, repository);
+    var result = service.ImportPersonsAsCustomers();
+    Assert.Equal(1, result.TotalPersonsProcessed);
+    Assert.Equal(1, result.CustomersAdded);
+    Assert.Equal(0, result.CustomersUpdated);
+    Assert.Equal(0, result.CustomersSkipped);
+    Assert.Single(repository.AddedEntities);
+    
+    var addedCustomer = repository.AddedEntities[0] as Customer;
+    Assert.NotNull(addedCustomer);
+    Assert.Equal("John", addedCustomer.FirstName);
+    Assert.Equal("Doe", addedCustomer.LastName);
+}
+
+// ✅ CORRECT: Separate tests for separate expectations
+ [Fact]
+ public void ImportPersonsAsCustomers_NewPerson_AddsCustomer()
+ {
+     var repoMock = new FakeUnitOfWork(new Customer[0]);
+     var person = CreatePersonData(1, "John", "Doe", DateTime.UtcNow);
+     var service = GetTarget(new[] { person }, repoMock);
+
+     CustomerImportResult result = service.ImportPersonsAsCustomers();
+
+     Assert.Contains(repoMock.GetAddedEntities<Customer>(),
+         c => c.FirstName == "John" && c.LastName == "Doe");
+ }
+
+ [Fact]
+ public void ImportPersonsAsCustomers_NewPerson_ReturnsResultWithAddedCustomer()
+ {
+     var person = CreatePersonData(1, "John", "Doe", DateTime.UtcNow);
+     var service = GetTarget(new[] { person }, new Customer[0]);
+
+     CustomerImportResult result = service.ImportPersonsAsCustomers();
+
+     Assert.Equal(1, result.TotalPersonsProcessed);
+     Assert.Equal(1, result.CustomersAdded);
+ }
+
+
+ // ❌ WRONG: Overspecified assertions (expected values may be at any position in collection)
+     repoMock.GetAddedEntities<Customer>()[0].FirstName.Should().Be("John");
+     repoMock.GetAddedEntities<Customer>()[0].LastName.Should().Be("Doe");
+
+
+// ✅ CORRECT: Use Contains with predicate 
+     Assert.Contains(repoMock.GetAddedEntities<Customer>(),
+         c => c.FirstName == "John" && c.LastName == "Doe");
+
+// ✅ CORRECT: Use BeEquivalentTo for full collection match
+     repoMock.GetAddedEntities<Customer>().Should().BeEquivalentTo(new[]
+     {
+         new Customer { FirstName = "John", LastName = "Doe" }
+     });
+
 
 // ❌ WRONG: Testing implementation details
 repository.Received(1).GetByIdAsync(entityId, CancellationToken);
@@ -459,13 +456,16 @@ public void Test()
 {
     var entity = CreateEntity();  // Fresh instance
 }
+
+// ❌ WRONG: Create SUT inline with setup duplication
+var repoMock = new FakeUnitOfWork(new Customer[0]);
+var person = CreatePersonData(1, "John", "Doe", DateTime.UtcNow);
+var service = new CustomerImportService(personService, repoMock);
+
+
+// ✅ CORRECT: Create SUT via GetTarget helper to reduce duplication by reusing setup code
+var repoMock = new FakeUnitOfWork(new Customer[0]);
+var person = CreatePersonData(1, "John", "Doe", DateTime.UtcNow);
+var service = GetTarget(new[] { person }, repoMock);
+
 ```
-
----
-
-## Related Skills
-
-- `cqrs-command-generator` - Commands to test
-- `cqrs-query-generator` - Queries to test
-- `domain-entity-generator` - Domain entities to test
-- `integration-testing` - End-to-end tests
