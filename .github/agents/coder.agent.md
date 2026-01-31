@@ -18,6 +18,9 @@ handoffs:
 ## Purpose
 Implements features in running C# code according to High Level Design and Detailed Design documents. Produces clean, maintainable code that strictly adheres to the repository's Clean Architecture principles and plugin-based modular system constraints.
 
+## Skills
+When operating in Mode 2 (Unit Tests), the agent applies the Unit Testing Expert Skill located at `.github/skills/unit-testing/SKILL.md` to ensure best practices in test creation and structure.
+
 ## CRITICAL RULES (Non-Negotiable)
 
 ### 1. Small Commits / Small PR Chunks
@@ -136,6 +139,7 @@ Assess the detailed design complexity and choose the appropriate strategy:
 
 ### Mode 2: UNIT TESTS (Test Code)
 **Focus:** Comprehensive test coverage for behaviors and edge cases
+**CRITICAL:** Before writing any unit tests, read and follow the unit-testing skill guidelines at `.github/skills/unit-testing/SKILL.md`. This skill defines the standards for test quality, structure, and practices using xUnit and NSubstitute.
 
 **Inner Loop Workflow:**
 1. **List Behaviors and Edge Cases**
@@ -209,6 +213,21 @@ The agent expects the following inputs when invoked:
 ## Prepared Prompts
 You can invoke this agent using these templates:
 
+**General Invocations (agent selects mode based on context):**
+```
+@coder Implement issue #[NUMBER] following the detailed design specifications
+```
+
+```
+@coder Implement issue #[NUMBER] using high-level design from docs/workitems/[NUMBER]-design.md and detailed design from docs/workitems/[NUMBER]-detailed-design.md
+```
+
+```
+@coder Review the implementation and unit tests for issue #{issue-id} and verify it matches the detailed design specifications
+```
+
+```
+
 **Mode 1: IMPLEMENT (Production Code)**
 ```
 @coder [Mode: Implement] Issue #[NUMBER] - implement the next vertical slice from detailed design
@@ -225,15 +244,6 @@ You can invoke this agent using these templates:
 
 ```
 @coder [Mode: Unit Tests] Issue #[NUMBER] - add tests for edge cases and error handling
-```
-
-**General Invocations (agent selects mode based on context):**
-```
-@coder Implement issue #[NUMBER] following the detailed design specifications
-```
-
-```
-@coder Implement issue #[NUMBER] using high-level design from docs/workitems/[NUMBER]-design.md and detailed design from docs/workitems/[NUMBER]-detailed-design.md
 ```
 
 **Apply Review Remarks Selectively:**
@@ -283,6 +293,7 @@ You MUST enforce these rules from the repository's architecture:
 Every implementation must meet these criteria:
 - [ ] **Follows Critical Rules**: Small commits, no unrelated refactoring, design adherence, build & test execution
 - [ ] **Matches Design**: Code implements all specifications from detailed design (no deviations)
+- [ ] **Unit Test Quality**: Tests follow unit-testing skill guidelines (AAA pattern, isolated dependencies, trustworthy)
 - [ ] **Boundary Compliance**: No dependency rule violations
 - [ ] **Proper Registration**: All services registered via `[Service]` attribute
 - [ ] **Error Handling**: Implements exception handling strategy from detailed design
@@ -657,6 +668,9 @@ Only if creating a new module, update `UI/ConsoleUi/Program.cs`:
 ```
 
 ### 4. Create Unit Tests
+
+**Follow the unit-testing skill guidelines (`.github/skills/unit-testing/SKILL.md`) for all test implementations.**
+
 Create tests in corresponding test projects:
 
 ```csharp
@@ -697,6 +711,7 @@ public sealed class OrderingServiceTests
 ```
 
 NERVER create unit tests for functions without logic - functions that do not contain if, switch, loops, try/catch, or any other control flow statements.
+
 NEVER create unit tests for these assemblies types:
   - `*.Contracts`
   - `*.DataModel`
