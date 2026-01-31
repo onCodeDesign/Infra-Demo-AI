@@ -1,6 +1,7 @@
 ---
 name: unit-testing
-description: "Generates unit tests using xUnit and NSubstitute. Implements Arrange-Act-Assert pattern with comprehensive test coverage for success and failure scenarios."
+description: "Write, refactor, and review unit tests using xUnit and NSubstitute. Target trustworthy, maintainable, readable tests; AAA structure; isolate dependencies; prefer state-based
+  testing; avoid brittle interaction tests; enforce clear naming and minimal noise."
 version: 1.0.0
 language: C#
 framework: .NET 10.0
@@ -8,11 +9,390 @@ dependencies: xUnit, NSubstitute, FluentAssertions
 pattern: Arrange-Act-Assert, Test Doubles, Mocks and Stubs
 ---
 
-# Unit Test Generator
+# Unit Testing Expert Skill
 
-## Overview
+## Quick Reference
 
-Unit tests for Clean Architecture handlers:
+**Test Structure:** Arrange-Act-Assert (blank lines separate sections)
+**Naming:** `[Method]_[Scenario]_[ExpectedBehavior]`
+**SUT Variable:** Always `target`
+**Mocks:** ONE per test (verify interactions)
+**Stubs:** Many OK (return data)
+**Fake Classes:** `Fake{Interface}`, variables: `{name}Stub` or `{name}Mock`
+
+## Core Principles
+
+### The Three Pillars of Good Tests
+
+ 1. **Trustworthiness** - Tests that developers believe in and accept with confidence
+ 2. **Maintainability** - Tests that are easy to change without breaking
+ 3. **Readability** - Tests that clearly communicate their intent
+
+### What Makes a Good Unit Test
+
+A unit test should be:
+
+- **Fast** - Executes quickly (milliseconds, not seconds)
+- **Isolated** - Can run independently in any order
+- **Repeatable** - Produces consistent results
+- **Self-validating** - Pass/fail is automatic, no manual inspection
+- **Timely** - Written at the right time (ideally before or with production code)
+- **Focused** - Tests one behavior or concept. Has at most one reason to fail
+
+## Test Structure (AAA Pattern)
+
+### Arrange-Act-Assert
+
+```csharp
+[Test]
+public void Withdraw_ValidAmount_DecreasesBalance()
+{
+    // Arrange - Set up test data and dependencies
+    var account = new BankAccount(100);
+    var withdrawAmount = 50;
+    
+    // Act - Execute the method under test
+    account.Withdraw(withdrawAmount);
+    
+    // Assert - Verify the expected outcome
+    Assert.AreEqual(50, account.Balance);
+}
+```
+
+### Key Points
+
+- Keep each section visually separated (blank lines)
+- Avoid separating comments in favour of blank lines
+- Arrange should be comprehensive but not excessive
+- Act should usually be a single line
+- Assert should verify one logical concept
+
+## Stubs vs Mocks
+
+Both stubs and mocks are fakes used to isolate the system under test (SUT) from its dependencies, but they serve different purposes.
+
+### Stubs
+
+**Purpose**: Provide controllable indirect input to the system under test
+
+**Characteristics**:
+
+- Never fail a test
+- Used to simulate scenarios
+- Return predetermined values
+- Don't verify interactions
+
+**Example**:
+
+```csharp
+// Stub returns fake data
+IDataProvider stubProvider = Substitute.For();
+stubProvider.GetData().Returns(fakeData);
+
+// Test uses stub but doesn't verify it was called
+var result = systemUnderTest.Process();
+Assert.IsTrue(result.IsValid);
+```
+
+### Mocks
+
+**Purpose**: Verify that the system under test interacts correctly with dependencies
+
+**Characteristics**:
+
+- CAN fail a test
+- Used to verify behavior
+- Assert against method calls
+- Check interaction occurred correctly
+
+**Example**:
+
+```csharp
+// Mock verifies interaction
+IEmailService mockEmail = Substitute.For();
+
+systemUnderTest.ProcessOrder(order);
+
+// Verify the interaction happened
+mockEmail.Received().SendEmail("user@example.com", Arg.Any());
+```
+
+### Golden Rule
+
+**Only ONE mock per test** - Everything else should be stubs
+
+- If you're verifying multiple mocks, you're testing multiple things
+- Multiple stubs are fine - they're just setup
+
+## Naming Convention
+
+### Test Naming Template
+
+```
+[MethodUnderTest]_[Scenario]_[ExpectedBehavior]
+```
+
+**Examples:**
+
+- `IsValidFileName_BadExtension_ReturnsFalse()`
+- `Add_NegativeNumber_ThrowsException()`
+- `ProcessOrder_InvalidUser_SendsNotificationEmail()`
+
+**Guidelines:**
+
+- Use underscores to separate the three parts
+- Be descriptive and specific about the scenario
+- Avoid technical jargon in favor of business language
+- Make the expected behavior crystal clear
+
+### Naming Convention for system under test (SUT)
+
+- Always use `target` as the variable name for the SUT instance in tests
+
+**There can be only one `target` per test.**
+
+### Naming Convention for Fakes
+
+**Class Names:**
+
+- Use `Fake{InterfaceName}` preffix for handwritten test doubles that can act as both stub and mock
+- Example: `FakeRepository`, `FakeUnitOfWork`, `FakePersonService`
+
+**Variable Names in Tests:**
+
+- Use `{name}Stub` suffix when the fake provides indirect input (returns data)
+- Use `{name}Mock` suffix when the fake is verified in assertions (checks interactions)
+- **A fake variable in a test is either a stub OR a mock, never both**
+
+```csharp
+// ✅ CORRECT: Variable named as stub (only returns data)
+[Fact]
+public void ProcessOrder_ValidRequest_CalculatesTotal()
+{
+    var calculatorStub = Substitute.For<IPriceCalculator>();
+    calculatorStub.Calculate(Arg.Any<Order>()).Returns(150m);
+    
+    var result = target.ProcessOrder(order);
+    
+    Assert.Equal(150m, result.Total);  // Not verifying calculatorStub
+}
+
+// ✅ CORRECT: Variable named as mock (verified in assertion)
+[Fact]
+public void ProcessOrder_ValidRequest_SendsEmail()
+{
+    var emailMock = Substitute.For<IEmailService>();
+    
+    target.ProcessOrder(order);
+    
+    emailMock.Received(1).SendEmail(Arg.Any<string>());  // Verifying emailMock
+}
+
+// ✅ CORRECT: Handwritten fake class used as stub
+[Fact]
+public void ImportPersons_ExistingCustomers_ReturnsData()
+{
+    var repositoryStub = new FakeUnitOfWork([existingCustomers]);  // Class: Fake*, Variable: *Stub
+    
+    var result = target.ImportPersons();
+    
+    Assert.Equal(3, result.Count);  // Not verifying repositoryStub
+}
+
+// ✅ CORRECT: Same fake class used as mock in different test
+[Fact]
+public void ImportPersons_NewPerson_AddsCustomer()
+{
+    var repositoryMock = new FakeUnitOfWork([]);  // Class: Fake*, Variable: *Mock
+    
+    target.ImportPersons();
+    
+    Assert.Single(repositoryMock.GetAddedEntities<Customer>());  // Verifying repositoryMock
+}
+
+// ❌ WRONG: Generic naming doesn't show intent
+var repository = Substitute.For<IRepository>();  // Is this a stub or mock?
+
+// ❌ WRONG: Calling it "mock" but using as stub
+var repositoryMock = Substitute.For<IRepository>();
+repositoryMock.GetAll().Returns(data);
+var result = service.Process();  // Not verifying repositoryMock - should be named repositoryStub
+```
+
+**Key Rule:** The suffix tells the reader HOW the fake is used in THIS test, not what it's capable of.
+
+## Test Isolation Strategies
+
+### Solitary Tests vs Collaborative Tests
+
+**Solitary Tests (Full Isolation):** 
+Fake ALL dependencies, test SUT in complete isolation:
+
+```csharp
+[Fact]
+public void PlaceOrder_ValidRequest_CalculatesTotal()
+{
+    var calculatorStub = Substitute.For<IPriceCalculator>();  // Faked
+    var validatorStub = Substitute.For<IOrderValidator>();     // Faked
+    var repositoryStub = Substitute.For<IRepository>();        // Faked
+    
+    calculatorStub.Calculate(Arg.Any<Order>()).Returns(150m);
+    
+    OrderService target = GetTarget(calculatorStub, validatorStub, repositoryStub);
+    
+    var result = target.PlaceOrder(order);
+    
+    Assert.Equal(150m, result.Total);
+}
+```
+
+**Collaborative Tests (Partial Isolation):**
+Use real collaborators when they're simple, fast, and stateless:
+
+```csharp
+[Fact]
+public void PlaceOrder_ValidRequest_CalculatesTotal()
+{
+    var calculatorStub = new PriceCalculator();  // Real - it's just math
+    var validatorStub = new OrderValidator();     // Real - no dependencies
+    var repositoryStub = new FakeRepository();    // Fake - has state/I/O
+    
+    OrderService target = GetTarget(calculatorStub, validatorStub, repositoryStub);
+    
+    var result = target.PlaceOrder(order);
+    
+    Assert.Equal(150m, result.Total);
+}
+```
+
+#### Guideline
+
+**Default to solitary tests in this codebase because:**
+
+- Services have many dependencies
+- Repository pattern abstracts EF Core (always fake IRepository)
+- Clear separation between layers
+
+**Use sociable tests when:**
+
+- Collaborator is a pure function (no state, no I/O)
+- Collaborator is a simple value object
+- You want to test interaction between two units
+
+Use real collaborators when they're simple, fast, and stateless.
+
+### When to Use Fake vs NSubstitute
+
+**Use Handwritten Fakes When:**
+
+- ✅ Dependency needs both stub AND mock behavior in same test
+- ✅ Complex state tracking required (e.g., tracking added entities)
+- ✅ Multiple tests need same fake implementation
+- ✅ Need query methods to inspect state for assertions
+
+```csharp
+// Fake can act as both stub and mock
+
+var stub = new FakeUnitOfWork([existingCustomers]);
+stub.GetEntities<Customer>().Returns(...);  // Stub
+
+// ... test code ...
+var mock = new FakeUnitOfWork([existingCustomers]);
+mock.GetAddedEntities<Customer>()  // Mock inspection
+```
+
+**Use NSubstitute When:**
+
+- ✅ Simple stub behavior only (return fixed value)
+- ✅ One-off verification needed
+- ✅ No state tracking required
+
+```csharp
+var stub = Substitute.For<IEmailService>();
+stub.SendEmail(Arg.Any<string>()).Returns(true);
+```
+
+**DataAccess Guideline:**
+
+- Prefer handwritten Fakes for IUnitOfWork because they track entity changes.
+- Prefer NSubstitute for IRepository stubs because it just returns data.
+
+### `[Theory]` Usage Guidance (LOW PRIORITY)
+
+When to use `[Theory]` vs multiple `[Fact]` tests:
+
+**Good Use Case: Same Logic, Different Data**:
+
+```csharp
+// ✅ CORRECT: Testing same logic with different inputs
+[Theory]
+[InlineData(0, true)]
+[InlineData(2, true)]
+[InlineData(4, true)]
+[InlineData(1, false)]
+[InlineData(3, false)]
+public void IsEven_Number_ReturnsCorrectResult(int number, bool expected)
+{
+    var result = calculator.IsEven(number);
+    Assert.Equal(expected, result);
+}
+```
+
+**Bad Use Case: Different Scenarios**:
+
+```csharp
+// ❌ WRONG: Different business scenarios, poor test names
+[Theory]
+[InlineData("valid@email.com", true)]
+[InlineData("invalid", false)]
+[InlineData("", false)]
+[InlineData(null, false)]
+public void Validate_Input_ReturnsResult(string input, bool expected)
+{
+    // Test name doesn't describe WHAT is being validated
+    // Each case is a different scenario (not just different data)
+}
+
+// ✅ CORRECT: Separate tests with clear names
+[Fact]
+public void ValidateEmail_ValidFormat_ReturnsTrue() { ... }
+
+[Fact]
+public void ValidateEmail_MissingAtSign_ReturnsFalse() { ... }
+
+[Fact]
+public void ValidateEmail_EmptyString_ReturnsFalse() { ... }
+
+[Fact]
+public void ValidateEmail_Null_ReturnsFalse() { ... }
+```
+
+#### Decision Rule
+
+Use `[Theory]` when:
+
+✅ Testing the same logical path with boundary values
+✅ Test name describes behavior clearly even with parameters
+✅ All cases test the same business rule
+
+Use multiple `[Fact]` when:
+
+✅ Each case represents a different scenario
+✅ Different setup/arrange logic needed
+✅ Test names need to describe different behaviors
+
+## Isolation Framework Usage
+
+### Best Practices
+
+1. **Prefer stubs over mocks** - Only use mocks when testing interactions
+2. **Avoid overspecification** - Don't verify implementation details
+3. **Keep it simple** - Complex mock setups indicate design problems
+4. **Use AAA syntax** - Arrange-Act-Assert is clearer than Record-Replay
+
+## Frameworks, Tools and Patterns
+
+Unit tests handlers:
 
 - **xUnit** - Test framework
 - **NSubstitute** - Mocking library
@@ -30,14 +410,43 @@ Unit tests for Clean Architecture handlers:
 
 ---
 
-## Test Project Structure
+## Test Organization
 
-```
+### Project Structure
+
+```markdown
 src/
 └── Modules/
     └── {Module}/
-        └── {Module}.{AssemblyName}.UnitTests/
-            └── {ClassName}Tests.cs   
+        └── {Module}.{Assembly}/
+            └── {Class}.cs
+        └── {Module}.{Assembly}.UnitTests/
+            └── {Class}Tests.cs   
+```
+
+### File Organization
+
+- One test class per production class
+- Name: `{ClassName}Tests`
+- Group related tests together
+- Use regions sparingly (prefer well-named methods)
+
+### Test Method Organization
+
+```csharp
+[Fact]
+public class LogAnalyzerTests
+{
+    // Tests grouped by method under test
+    [Test]
+    public void IsValid_BadExtension_ReturnsFalse() { ... }
+    
+    [Test]
+    public void IsValid_GoodExtension_ReturnsTrue() { ... }
+
+    // Helper methods at bottom
+    private LogAnalyzer MakeAnalyzer() { ... }
+}
 ```
 
 ---
@@ -343,6 +752,8 @@ result.Error.Should().Be(ExpectedError);
 
 ## Anti-Patterns to Avoid
 
+### Common Anti-Patterns
+
 ```csharp
 // ❌ WRONG: Multiple assertions
 [Fact]
@@ -422,22 +833,6 @@ public void ImportPersonsAsCustomers_NewPerson_AddsCustomer()
  }
 
 
- // ❌ WRONG: Overspecified assertions (expected values may be at any position in collection)
-     repoMock.GetAddedEntities<Customer>()[0].FirstName.Should().Be("John");
-     repoMock.GetAddedEntities<Customer>()[0].LastName.Should().Be("Doe");
-
-
-// ✅ CORRECT: Use Contains with predicate 
-     Assert.Contains(repoMock.GetAddedEntities<Customer>(),
-         c => c.FirstName == "John" && c.LastName == "Doe");
-
-// ✅ CORRECT: Use BeEquivalentTo for full collection match
-     repoMock.GetAddedEntities<Customer>().Should().BeEquivalentTo(new[]
-     {
-         new Customer { FirstName = "John", LastName = "Doe" }
-     });
-
-
 // ❌ WRONG: Testing implementation details
 repository.Received(1).GetByIdAsync(entityId, CancellationToken);
 repository.Received(1).Add(Arg.Any<Entity>());
@@ -468,4 +863,183 @@ var repoMock = new FakeUnitOfWork(new Customer[0]);
 var person = CreatePersonData(1, "John", "Doe", DateTime.UtcNow);
 var service = GetTarget(new[] { person }, repoMock);
 
+// ❌ WRONG: Testing implementation details
+mock.Verify(x => x.Method1());
+mock.Verify(x => x.Method2());
+mock.Verify(x => x.Method3());
+
+// ✅ CORRECT: Testing outcome
+var result = systemUnderTest.Execute();
+Assert.IsTrue(result.WasSuccessful);
+
+// ❌ WRONG: Testing entry point (method was called)
+[Fact]
+public void ProcessOrder_ValidOrder_CallsRepository()
+{
+    repository.Received(1).Save(Arg.Any<Order>());  // Testing implementation
+}
+
+// ✅ CORRECT: Testing exit point (state changed)
+[Fact]
+public void ProcessOrder_ValidOrder_OrderIsPersisted()
+{
+    var orders = repository.GetAll<Order>();
+    orders.Should().ContainSingle(o => o.Id == expectedId);  // Testing outcome
+}
+```
+
+### Maintainability Guidelines
+
+#### 1. Avoid Logic in Tests
+
+```csharp
+// ❌ WRONG:
+[Fact]
+public void BadTest()
+{
+    for (int i = 0; i < 10; i++)
+    {
+        if (i % 2 == 0)
+        {
+            // test logic
+        }
+    }
+}
+
+// ✅ CORRECT:
+[Fact]
+public void Process_EvenNumber_ReturnsTrue()
+{
+    var result = calculator.IsEven(4);
+    Assert.IsTrue(result);
+}
+```
+
+#### 2. Remove Duplication with Helper Methods
+
+```csharp
+// ❌ WRONG:
+[Fact]
+public void Test1()
+{
+    var obj = new ComplexObject();
+    obj.Property1 = "value";
+    obj.Property2 = 42;
+    obj.Initialize();
+    // test code
+}
+
+[Fact]
+public void Test2()
+{
+    var obj = new ComplexObject();
+    obj.Property1 = "value";
+    obj.Property2 = 42;
+    obj.Initialize();
+    // test code
+}
+
+// ✅ CORRECT:
+[Fact]
+public void Test1()
+{
+    var obj = GetTarget();
+    // test code
+}
+
+private ComplexObject GetTarget()
+{
+    var obj = new ComplexObject();
+    obj.Property1 = "value";
+    obj.Property2 = 42;
+    obj.Initialize();
+    return obj;
+}
+```
+
+#### 3. Use Setup Methods Carefully
+
+**Only put in Setup what ALL tests need**:
+
+```csharp
+[SetUp]
+public void SetUp()
+{
+    // Only if EVERY test needs this
+    _commonDependency = new CommonDependency();
+}
+
+#### 4. Avoid Overspecification
+
+```csharp
+ // ❌ WRONG: Overspecified assertions (expected values may be at any position in collection)
+     repoMock.GetAddedEntities<Customer>()[0].FirstName.Should().Be("John");
+     repoMock.GetAddedEntities<Customer>()[0].LastName.Should().Be("Doe");
+
+
+// ✅ CORRECT: Use Contains with predicate 
+     Assert.Contains(repoMock.GetAddedEntities<Customer>(),
+         c => c.FirstName == "John" && c.LastName == "Doe");
+
+// ✅ CORRECT: Use BeEquivalentTo for full collection match
+     repoMock.GetAddedEntities<Customer>().Should().BeEquivalentTo(new[]
+     {
+         new Customer { FirstName = "John", LastName = "Doe" }
+     });
+
+
+// ❌ WRONG: Overspecified - any property change breaks test
+result.Should().BeEquivalentTo(new Order
+{
+    Id = 123,
+    Status = "Pending",
+    CreatedDate = DateTime.Parse("2026-01-30"),
+    ModifiedDate = DateTime.Parse("2026-01-30"),
+    CreatedBy = "System",
+    Version = 1
+    // ... 20 more properties
+});
+
+// ✅ CORRECT: Test only relevant properties
+result.Status.Should().Be("Pending");
+result.Items.Should().HaveCount(3);
+```
+
+### Readability Guidelines
+
+**Prioritize readability over DRY:**
+
+1. **Test names are documentation** - Should be readable sentences
+2. **Setup code should be visible** - Not hidden in [TestInitialize]
+3. **Magic numbers are OK in tests** - Clarity > DRY
+4. **Some duplication is acceptable** - Readability > reuse
+
+
+```csharp
+// ❌ WRONG: Over-abstracted, hard to understand
+[Fact]
+public void Test_Scenario1()
+{
+    var result = ExecuteTest(TestData.Scenario1);
+    VerifyExpectations(result, Expected.Scenario1);
+}
+
+// ✅ CORRECT: Explicit and obvious
+[Fact]
+public void ProcessOrder_WithThreeItems_CalculatesTotalPrice()
+{
+    var order = new Order 
+    { 
+        Items = new[] 
+        { 
+            new Item { Price = 10 },
+            new Item { Price = 20 },
+            new Item { Price = 30 }
+        }
+    };
+    
+    var result = processor.ProcessOrder(order);
+    
+    Assert.Equal(60, result.TotalPrice);
+}
 ```
