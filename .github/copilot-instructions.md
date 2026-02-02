@@ -87,7 +87,7 @@ options
 - Additional params: dependent assemblies in same LoadContext
 - Specify all assemblies that are not referenced by any other assembly, grouped by module. Plugin == Module.
 - One LoadContext is created for each defined plugin.
-- Convention: `{ModuleName}.{AssemblySuffix}` matches folder structure
+- Convention: `{ModuleName}.{AssemblySuffix}` matches folder structure. Note: the `Modules` and `Infra` folders are NOT part of the namespace, as it is a physical organization only.
 - See `UI/ConsoleUi/Program.cs` for full bootstrap example
 
 ### 4) Module Initialization
@@ -176,6 +176,7 @@ dotnet run --project UI/ConsoleUi  # Run console app
 - **No comments:** Code should be self-documenting
 - **Manual mapping:** Avoid AutoMapper - write explicit mapping code
 - **Internal by default:** Mark services `internal` unless explicitly exported via `Contracts`
+- **Namespaces:** Match folder structure, exclude `Modules`, `Infra` and `UI` from namespace as they are physical organization only
 
 ---
 
@@ -233,3 +234,9 @@ Checklist:
 - Unit tests in corresponded test project named as `{Assembly}.UnitTests` example: `Infra/AppBoot.UnitTests` (xUnit)
 - Test plugin loading with `AssembliesLoaderTests.cs` examples
 - Run: `dotnet test`
+
+### Unit Tests Naming Convention
+- `{MethodName}_{Scenario}_{ExpectedResult}` example: `CalculateTotal_OrderHasItems_ReturnsSum`
+
+### Integration Tests Naming Convention
+- `When{Scenario}_Then{ExpectedResult}` example: `WhenCreatingOrder_ThenOrderIsPersisted`
