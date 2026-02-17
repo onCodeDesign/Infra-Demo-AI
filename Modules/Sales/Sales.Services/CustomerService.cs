@@ -4,6 +4,7 @@ using AppBoot.DependencyInjection;
 using Contracts.Sales;
 using DataAccess;
 using Sales.DataModel.SalesLT;
+using Sales.DataModel.Values;
 
 namespace Sales.Services;
 
@@ -51,5 +52,28 @@ class CustomerService(IRepository repository) : ICustomerService
             filter = c => c.CompanyName != null && c.CompanyName.Contains(fragment);
 
         return GetCustomersWithOrdersFilteredBy(filter);
+    }
+
+    public CustomerWithOverdueOrdersData[] GetCustomersWithOverdueOrders()
+    {
+        var today = DateTime.Today;
+        var closedStatuses = new[] { SalesOrderHeaderStatusValues.Shipped, SalesOrderHeaderStatusValues.Cancelled };
+
+        return repository.GetEntities<Customer>()
+            .Where(c => c.SalesOrderHeaders.Any(o =>
+                o.DueDate < today &&
+                !closedStatuses.Contains(o.Status)))
+            .Select(c => new CustomerWithOverdueOrdersData
+            {
+                CustomerName = c.CompanyName ?? $"{c.FirstName} {c.LastName}",
+                OverdueOrdersCount = c.SalesOrderHeaders
+                    .Where(o => o.DueDate < today && !closedStatuses.Contains(o.Status))
+                    .Count(),
+                OldestDueDate = c.SalesOrderHeaders
+                    .Where(o => o.DueDate < today && !closedStatuses.Contains(o.Status))
+                    .Min(o => o.DueDate)
+            })
+            .OrderBy(x => x.OldestDueDate)
+            .ToArray();
     }
 }
