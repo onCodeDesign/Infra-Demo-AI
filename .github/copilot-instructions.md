@@ -10,7 +10,7 @@
 - **Key Patterns:** 
     - AppBoot plugin system with isolated LoadContexts per module
     - Hide external frameworks (EF Core) from business logic (Modules) via abstraction (IRepository/IUnitOfWork)
-- **Modules:** `Sales`, `ProductsManagement`, `PersonsManagement`, `Notifications`, `Export`
+- **Modules:** `Sales`, `ProductsManagement`, `PersonsManagement`, `Notifications`, `Export`. Other modules may be added
 
 ---
 
@@ -25,6 +25,7 @@ Modules/
 ├─ Contracts/                    # Pure interfaces/DTOs - NO dependencies, NO logic
 ├─ {Module}/                     # e.g., Sales, ProductsManagement
 │  ├─ {Module}.Services/         # Business logic - [Service] attribute for DI
+│  ├─ {Module}.Services.UnitTests/   # Unit tests
 │  ├─ {Module}.DataModel/        # Entities only - NO logic, NO EF references
 │  ├─ {Module}.DbContext/        # EF DbContext (DO NOT MODIFY - generated)
 │  └─ {Module}.ConsoleCommands/  # Console commands via IConsoleCommand
@@ -76,40 +77,17 @@ using (IUnitOfWork uof = repository.CreateUnitOfWork())
 - **Never** use `DbContext` directly in Services layer (enforced by project references)
 - `IUnitOfWork` inherits from `IRepository`. It reads data to be modified and tracks changes for `SaveChanges()`.
 
-### 3) Plugin Loading (Program.cs)
-Modules are loaded dynamically at runtime:
-```csharp
-options
-    .AddPlugin("Sales.Services", "Sales.DbContext", "Sales.ConsoleCommands")
-    .AddPlugin("Notifications.Services");
-```
-- First parameter: primary assembly name (must have `EnableDynamicLoading=true`)
-- Additional params: dependent assemblies in same LoadContext
-- Specify all assemblies that are not referenced by any other assembly, grouped by module. Plugin == Module.
-- One LoadContext is created for each defined plugin.
-- Convention: `{ModuleName}.{AssemblySuffix}` matches folder structure. Note: the `Modules` and `Infra` folders are NOT part of the namespace, as it is a physical organization only.
-- See `UI/ConsoleUi/Program.cs` for full bootstrap example
+### 3) Plugin Loading & Module Initialization
+Modules load dynamically via `.AddPlugin("{Module}.Services", "{Module}.DbContext", ...)` in `UI/ConsoleUi/Program.cs`; each implements `IModule` for startup logic.
 
-### 4) Module Initialization
-Modules implement `IModule` for startup logic:
-```csharp
-[Service(typeof(IModule), ServiceLifetime.Singleton)]
-class SalesServicesModule(INotificationService notificationService) : IModule
-{
-    public void Initialize(IHost host)
-    {
-        notificationService.NotifyAlive(this);
-    }
-}
-```
-- `Initialize()` called once at app startup, on `Main()` function
+> For registration rules, `IModule` pattern, and step-by-step setup, use the **add-module-plugin** skill.
 
-### 5) Entity Interceptors
+### 4) Entity Interceptors
 Hook into EF lifecycle via `IEntityInterceptor<T>` or `IEntityInterceptor`:
 - Registered automatically via `[Service]` attribute
 - Applied by DataAccess layer (no direct EF SaveChanges calls)
 
-#### 5.1.) Specific Entity Interceptor
+#### 4.1.) Specific Entity Interceptor
 
 - Use `IEntityInterceptor<T>` to register interceptors that will be applied to a specific entity type ONLY.
 - Implement by inheriting from `EntityInterceptor<T>` and overriding methods like `OnSave()`, `OnDelete()`, etc.
@@ -125,7 +103,7 @@ class SalesOrderCalculationsInterceptor : EntityInterceptor<SalesOrderHeader>
 }
 ```
 
-#### 5.2.) Global Entity Interceptor
+#### 4.2.) Global Entity Interceptor
 
 - Use `IEntityInterceptor` to register interceptors that will be applied to ALL entities.
 - Implement by inheriting from `GlobalEntityInterceptor` and overriding methods like `OnSave()`, `OnDelete()`, etc.
@@ -155,12 +133,9 @@ dotnet run --project UI/ConsoleUi  # Run console app
 ```
 
 ### Plugin Build Dependencies
-**Problem:** Plugin assemblies (e.g., `Sales.Services`) aren't referenced directly by host, so VS may not build them.
+Plugin assemblies are not referenced directly, so `dotnet build` skips them unless build-order dependencies are declared in `AppInfraDemo.sln`.
 
-**Solution:** Add to Visual Studio build dependencies:
-- Right-click solution → **Project Build Dependencies**
-- Add plugin projects as dependencies of `UI/ConsoleUi`
-- For multi-assembly plugins (e.g., `Sales.Services` + `Sales.DbContext`), add dependent asseblies as dependencies of the primary plugin assembly only (e.g., `Sales.Services`)
+> For the full pattern and GUID lookup steps, use the **add-module-plugin** skill.
 
 ### Project Configuration
 - Plugin assemblies which are dynamically loaded, as no other assemblies references them, have `<EnableDynamicLoading>true</EnableDynamicLoading>`
@@ -183,7 +158,7 @@ dotnet run --project UI/ConsoleUi  # Run console app
 ## Protected Areas (DO NOT MODIFY)
 - `Infra/**` - Framework code, touch only via extension methods/adapters
 - `*/DbContext/**` - EF-generated or scaffolded, modify via migrations
-- `*.csproj` files - Avoid manual edits (managed by SDK/tooling)
+- `*.csproj` files - Avoid manual edits to existing project files unless adding a new module or a test project (see `add-module-plugin` or `unit-testing`  skills).
 
 If modification requested in these areas, suggest:
 - Extension methods (for Infra)
@@ -224,19 +199,37 @@ Checklist:
 | Add service | `[Service(typeof(IFoo))]` on implementation in `*.Services/` |
 | Read data | Inject `IRepository`, use `GetEntities<T>()` |
 | Write data | `using var uof = repository.CreateUnitOfWork()` |
-| Add module | Create folder under `Modules/`, add to `Program.cs` `.AddPlugin()` |
 | Console command | Implement `IConsoleCommand` in `*.ConsoleCommands/` |
 | Share types | Add to `Modules/Contracts/{Module}/` (interfaces/DTOs only) |
 
 ---
 
+## Skills
+
+Domain-specific guidance documents located in `.github/skills/`. When a task matches a skill's domain, read its `SKILL.md` file for detailed instructions.
+
+| Skill | Purpose |
+|-------|---------|
+| **add-module-plugin** | Step-by-step guide for adding new modules: folder structure, plugin registration, `IModule` initialization, build-order dependencies in `.sln` |
+| **unit-testing** | Test patterns using xUnit, NSubstitute, FluentAssertions: AAA structure, fake naming (`Stub`/`Mock`), collection assertions, `GetTarget` helpers |
+
+Usage pattern in this file: `> For [topic], use the **skill-name** skill.`
+
+---
+
 ## Tests
-- Unit tests in corresponded test project named as `{Assembly}.UnitTests` example: `Infra/AppBoot.UnitTests` (xUnit)
-- Test plugin loading with `AssembliesLoaderTests.cs` examples
+
 - Run: `dotnet test`
 
-### Unit Tests Naming Convention
-- `{MethodName}_{Scenario}_{ExpectedResult}` example: `CalculateTotal_OrderHasItems_ReturnsSum`
+> For Unit Test structure, naming, and fake patterns, use the **unit-testing** skill.`
 
 ### Integration Tests Naming Convention
 - `When{Scenario}_Then{ExpectedResult}` example: `WhenCreatingOrder_ThenOrderIsPersisted`
+
+## Commit Messages
+
+Always use this template for commit messages:
+
+```
+[AI:{AgentType}, HUMAN:-, MODEL: {ModelNameAndVersion}] (#{TicketNumber}) {ShortDescription}
+```

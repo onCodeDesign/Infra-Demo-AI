@@ -58,7 +58,7 @@ list.Should().ContainSingle(c => c.FirstName == "John")
     .Which.LastName.Should().Be("Doe");
 ```
 
-#### BeEquivalentTo — use when asserting the full collection matches
+#### BeEquivalentTo — use when asserting the full collection matches and order doesn't matter
 
 ```csharp
 // ✅ Full match, order-insensitive by default
@@ -87,6 +87,16 @@ list.Should().BeEquivalentTo(expected,
         .Excluding(c => c.CreatedDate)
 );
 
+// ❌ Multiple assertions on individual items — brittle and verbose, order-dependent
+result.Should().HaveCount(3);
+result[0].CustomerName.Should().Be("Alpha Corp");
+result[0].OldestOverdueOrderDate.Should().Be(DateTime.Today.AddDays(-10));
+result[1].CustomerName.Should().Be("Beta Corp");
+result[1].OldestOverdueOrderDate.Should().Be(DateTime.Today.AddDays(-5));
+result[2].CustomerName.Should().Be("Gamma Corp");
+result[2].OldestOverdueOrderDate.Should().Be(DateTime.Today.AddDays(-3));
+
+
 // ❌ Over-specified — any unrelated property change breaks the test
 list.Should().BeEquivalentTo(new Customer
 {
@@ -101,9 +111,9 @@ list.Should().BeEquivalentTo(new Customer
 |---|---|
 | One item exists matching conditions | `ContainSingle(predicate)` |
 | At least one item matches | `Contain(predicate)` |
-| Exact collection match, all properties | `BeEquivalentTo(expected)` |
-| Exact collection match, selected properties | `BeEquivalentTo(expected, options => options.Including(...))` |
-| Ignore generated/audit properties | `BeEquivalentTo(expected, options => options.Excluding(...))` |
+| Order-insensitive collection match, all properties | `BeEquivalentTo(expected)` |
+| Order-insensitive collection match, selected properties | `BeEquivalentTo(expected, options => options.Including(...))` |
+| Order-insensitive collection match, ignoring generated/audit properties | `BeEquivalentTo(expected, options => options.Excluding(...))` |
 | Never | `list[0].Property` |
 
 ---
