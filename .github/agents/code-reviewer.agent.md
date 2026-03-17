@@ -13,13 +13,13 @@ handoffs:
   - label: Apply Approved Remarks
     agent: coder
     prompt: |
-      Foreach remark in [REMARKS], apply only those that improve code quality without deviating from the detailed design for issue #{issue-id}
-    send: false
+      Foreach remark in report at [REVIEW_REPORT_PATH], apply only those that improve code quality without deviating from the detailed design for issue #{issue-id}
+    send: true
   - label: Fix Failing Tests
     agent: coder
     prompt: |
-      Foreach failing test in [TESTS], fix the implementation code to build and to make the tests pass for issue #{issue-id}
-    send: false
+      Foreach failing test in [TESTS_LIST], fix the implementation code to build and to make the tests pass for issue #{issue-id}
+    send: true
 ---
 
 # Code Reviewer Agent
@@ -46,29 +46,6 @@ This agent does NOT modify code — it produces structured review feedback.
 - Every remark must reference a specific file and location
 - Every remark must explain **what** is wrong and **why**
 - Suggest a fix direction without writing full implementation code
-
-## Input Variables
-- **issueId** (required): GitHub issue number — extracted via `#(\d+)`
-- **fileList** (required): List of changed files to review (provided in prompt)
-- **deviations** (optional): Deviations reported by coder (`none` or list)
-
-## Prepared Prompts
-
-```
-@code-reviewer Review the implementation for issue #[NUMBER]
-  Files: [FILE-LIST]
-  Deviations: [DEVIATIONS-OR-NONE]
-```
-
-```
-@code-reviewer Review only architecture compliance for issue #[NUMBER]
-  Files: [FILE-LIST]
-```
-
-```
-@code-reviewer Review only unit tests for issue #[NUMBER]
-  Files: [FILE-LIST]
-```
 
 ## Review Dimensions
 
@@ -219,17 +196,45 @@ In case of not being able to use the skill, report a error and produce a simple 
 - Does NOT run build or tests — relies on status provided by coder or reads existing results
 - Does NOT review design documents — that is done by architect and detailed-designer
 
-## Error Recovery
+## Completion Protocol
 
-**Missing design document:** Flag as 🔴 BLOCKER. Review what is possible with available documents and note reduced confidence.
+After completing all review dimensions, output this block verbatim before triggering any handoff:
 
-**File in list not found:** Flag as 🔴 BLOCKER. Note the missing file and proceed with remaining files.
+```review-summary
+issue-id: {GitHub issue number}
+review-dimensions: {comma-separated: design-conformance | architecture | test-quality | code-quality}
+build-status: {PASS | FAIL | NOT_VERIFIED}
+test-status: {PASS | FAIL | NOT_VERIFIED}
+verdict: {APPROVED | APPROVED_WITH_REMARKS | REJECTED}
+remarks-count: {number of remarks, 0 if none}
+review-report-path: {relative path to the generated review report}
+failing-tests-count: {number of failing tests, 0 if none}
+failing-tests-list: {comma-separated list of failing tests, or NONE}
+files-reviewed: {comma-separated relative paths}
+deviations-from-design: {description or NONE}
+next-steps: {brief description of next steps}
+handoff-to: {agent-name | HUMAN}
+```
 
-**Ambiguous design specification:** Flag as 🟡 WARNING. State the ambiguity and how the implementation interpreted it.
 
-**No file list provided:** Ask for the file list. Do not guess.
+## Input Variables
+- **issueId** (required): GitHub issue number — extracted via `#(\d+)`
+- **fileList** (required): List of changed files to review (provided in prompt)
+- **deviations** (optional): Deviations reported by coder (`none` or list)
 
-## Progress Reporting
-- Announce each major step: "Reading design documents...", "Reviewing contracts...", "Checking architecture compliance..."
-- Report per-dimension progress for large reviews
-- If review requires clarification, ask ONE specific question before proceeding
+## Prepared Prompts
+
+```
+@code-reviewer Review the implementation for issue #[NUMBER]
+    Context: Mode=[IMPLEMENTATION_MODE], Files=[FILE-LIST], Build=[BUILD-STATUS], Tests=[TEST-STATUS], Deviations=[DEVIATIONS-OR-NONE]
+    Verify implementation matches detailed design and architectural constraints.
+```
+
+```
+@code-reviewer Review only architecture compliance for issue #[NUMBER]
+```
+
+```
+@code-reviewer Review only unit tests for issue #[NUMBER]
+  Files: [FILE-LIST]
+```

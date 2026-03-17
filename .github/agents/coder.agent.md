@@ -130,7 +130,24 @@ Dependency check: ✅ {verification}
 **Mode 2:** Load skill → List scenarios → Write tests → Run → Commit
 
 ### 5. Build & Verify
-`dotnet build` → `dotnet test` → report results
+
+**Run in sequence:**
+1. `dotnet build {solution-file}`
+2. `dotnet test {solution-file} --no-build`
+
+**On failure — Self-Correction Loop (max 3 iterations each):**
+
+| Failure Type | Diagnose | Fix |
+|---|---|---|
+| Compilation | Missing using/type mismatch/interface violation | Minimal targeted fix only |
+| Dependency | Missing registration/circular ref | Fix wiring, do not restructure |
+| Nullable | Null ref/annotation mismatch | Add guard or annotation |
+| Test logic | Assertion/setup/async issue | Fix impl or test, not both |
+
+- Apply build fix → rebuild → repeat up to 3 times.
+- Apply test fix → retest → repeat up to 3 times.
+- Do NOT expand scope, refactor, or modify pre-existing failing tests.
+- On 3rd failure: STOP, document all attempts, request human intervention — do not trigger handoff.
 
 ### 6. Validate
 
@@ -149,24 +166,25 @@ Dependency check: ✅ {verification}
 
 **After 3 failed fix attempts:** STOP, document all attempts, request human intervention.
 
-## Response Format
+## Completion Protocol
+
+Output this HANDOFF block verbatim before triggering any handoff:
 
 ```
-Mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)
-Issue #{id} — {description}
-
-Summary: {2-3 lines}
-Design Deviations: NONE | {list with justification}
-
-Files Changed:
-Commit: "{message}"
-  - {path} ({description})
-
-Build: ✅|❌ ({errors} errors, {warnings} warnings)
-Tests: ✅|❌ ({passed}/{total} passed)
-
-Verification: ✅ Critical rules | ✅ Architecture | ✅ Scope
-Next Step: {what follows}
+HANDOFF_START
+issue-id #{id}
+issue-description: {description}
+implementation-mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)
+file-list: {comma-separated relative paths of all created or modified files}
+build-status: PASS|FAIL ({errors} errors, {warnings} warnings)
+build-iterations: {number of build attempts}
+test-status: PASS|FAIL ({passed}/{total} passed)
+test-iterations: {number of test fix attempts}
+design-deviations: NONE | {list with justification}
+commits: "{comma-separated list of commits. Format: '{commit-id}: {message}', {commit-id}: {message}'}"
+next-steps: {brief description of next steps}
+handoff-to: {agent-name | HUMAN}
+HANDOFF_END
 ```
 
 ## Input Variables
@@ -178,7 +196,20 @@ Next Step: {what follows}
 
 ```
 @coder Implement issue #[NUMBER] following the detailed design specifications
+```
+
+```
 @coder [Mode: Implement] Issue #[NUMBER] - implement [FEATURE] from detailed design
+```
+
+```
 @coder [Mode: Unit Tests] Issue #[NUMBER] - create tests for implemented code
+```
+
+```
 @coder Foreach remark in [REMARKS], apply only those that improve code quality without deviating from the detailed design for issue #[NUMBER]
-@coder Foreach failing test in [TESTS], fix the implementation code to build and to make the tests pass for issue #[NUMBER]a
+```
+
+```
+@coder Foreach failing test in [TESTS], fix the implementation code to build and to make the tests pass for issue #[NUMBER]
+```
