@@ -7,4 +7,6 @@ public interface ICustomerService
     CustomerData[] GetCustomersWithOrdersStartingWith(string prefix);
 
     CustomerData[] GetCustomersWithOrdersContaining(string fragment);
+
+    CustomerOverdueOrdersData[] GetCustomersWithOverdueOrders();
 }

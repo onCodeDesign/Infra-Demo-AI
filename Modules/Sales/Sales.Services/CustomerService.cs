@@ -3,12 +3,14 @@ using System.Security.Cryptography.X509Certificates;
 using AppBoot.DependencyInjection;
 using Contracts.Sales;
 using DataAccess;
+using Microsoft.Extensions.Logging;
 using Sales.DataModel.SalesLT;
+using Sales.DataModel.Values;
 
 namespace Sales.Services;
 
 [Service(typeof(ICustomerService))]
-class CustomerService(IRepository repository) : ICustomerService
+class CustomerService(IRepository repository, ILogger<CustomerService> logger) : ICustomerService
 {
     public CustomerData[] GetCustomersWithOrders()
     {
@@ -51,5 +53,33 @@ class CustomerService(IRepository repository) : ICustomerService
             filter = c => c.CompanyName != null && c.CompanyName.Contains(fragment);
 
         return GetCustomersWithOrdersFilteredBy(filter);
+    }
+
+    public CustomerOverdueOrdersData[] GetCustomersWithOverdueOrders()
+    {
+        logger.LogInformation("Retrieving customers with overdue orders");
+
+        var today = DateTime.Today;
+        var closedStatuses = new[] { SalesOrderHeaderStatusValues.Shipped, SalesOrderHeaderStatusValues.Cancelled };
+
+        var results = repository.GetEntities<SalesOrderHeader>()
+            .Where(o => o.DueDate < today && !closedStatuses.Contains(o.Status))
+            .GroupBy(o => o.Customer)
+            .Select(g => new CustomerOverdueOrdersData
+            {
+                CustomerName = !string.IsNullOrWhiteSpace(g.Key.CompanyName)
+                    ? g.Key.CompanyName
+                    : !string.IsNullOrWhiteSpace(g.Key.FirstName) || !string.IsNullOrWhiteSpace(g.Key.LastName)
+                        ? $"{g.Key.FirstName} {g.Key.LastName}".Trim()
+                        : $"Customer {g.Key.CustomerID}",
+                OverdueOrderCount = g.Count(),
+                OldestOverdueOrderDate = g.Min(o => o.DueDate)
+            })
+            .OrderBy(c => c.OldestOverdueOrderDate)
+            .ToArray();
+
+        logger.LogDebug("Found {Count} customers with overdue orders", results.Length);
+
+        return results;
     }
 }
