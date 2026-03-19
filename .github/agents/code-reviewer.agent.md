@@ -147,6 +147,11 @@ Review for quality issues and scope creep.
 ### 6. Produce Review Report
 Output structured report (see Response Format below).
 
+### 7. Commit and Optionally Export the Report to Github or Azure DevOps 
+By default, when not instructed otherwise, commit the saved report to the repository.
+
+If instructed to export to GitHub or Azure DevOps, use the skill as indicated in `### Review Report` section below.
+
 ## Response Format
 
 ### Summary
