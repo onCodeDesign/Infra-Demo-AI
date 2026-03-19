@@ -1,7 +1,6 @@
 ---
 description: 'Implementation agent that converts detailed design specifications into working C# code following Clean Architecture principles and strict dependency rules'
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/getTaskOutput', 'execute/createAndRunTask', 'execute/runInTerminal', 'read/getNotebookSummary', 'read/readFile', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'github/issue_read']
-model: Claude Sonnet 4.5 (copilot)
 required_skills:
   - path: '.github/skills/unit-testing/SKILL.md'
     when: 'mode == "unit-tests"'

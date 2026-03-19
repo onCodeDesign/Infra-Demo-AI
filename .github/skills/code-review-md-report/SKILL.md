@@ -34,7 +34,7 @@ Use the following template **exactly** as the structure for the report file. Rep
 ---
 
 ```markdown
-# Code Review Report
+# Code Review Markdown Report
 
 | Field | Value |
 |-------|-------|
