@@ -1,7 +1,6 @@
 ---
 description: 'Detailed design agent that converts approved high-level architecture into implementable specifications with explicit contracts, error handling, and test strategies'
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/getTaskOutput', 'execute/createAndRunTask', 'execute/runInTerminal', 'read/getNotebookSummary', 'read/readFile', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'github/issue_read']
-model: Claude Sonnet 4.5 (copilot)
 handoffs:
   - label: Review Detailed Design
     agent: detailed-designer

@@ -1,7 +1,6 @@
 ---
 description: 'Code review agent that verifies implementations match design documents, enforce architectural constraints, and meet quality standards'
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/getTaskOutput', 'execute/createAndRunTask', 'execute/runInTerminal', 'read/getNotebookSummary', 'read/readFile', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'github/issue_read']
-model: Claude Sonnet 4.6 (copilot)
 required_skills:
   - path: '.github/skills/code-review-report/SKILL.md'
     when: 'always'
@@ -127,6 +126,7 @@ Enforce rules from `.github/copilot-instructions.md`:
 
 ### 2. Read Implementation
 - Read every file in the provided file list
+- Map each file to the commit_id from the provided commits list for context 
 - For each file, understand its role (contract, service, entity, interceptor, test, etc.)
 - If build/test status failed, note failures upfront
 
@@ -173,9 +173,16 @@ Output a summary as following:
 
 ### Review Report
 
-Output a structured review report in markdown format, and save it at `docs/code-reviews/{issueId}-code-reviewer_{timestamp}.md`.
+Output a structured review report in the requested format. Save it at `docs/code-reviews/{issueId}-code-review_{timestamp}.{extension}`.
 
-Use the `code-review-report` skill to generate the report.
+Use below table to determine the skill you will use to generate the report:
+
+| Format | Skill | Extension |
+|--------|-------|-----------|
+| markdown | `code-review-md-report` | md |
+| json | `code-review-json-report` | json |
+| yaml | `code-review-yaml-report` | yaml |
+
 In case of not being able to use the skill, report a error and produce a simple markdown report.
 
 ## Error Recovery

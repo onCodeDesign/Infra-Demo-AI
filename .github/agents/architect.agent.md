@@ -1,7 +1,6 @@
 ---
 description: 'Architecture design agent for plugin-based modular systems following Clean Architecture principles with strict boundary enforcement'
 tools: ['execute/getTerminalOutput', 'execute/runTask', 'execute/getTaskOutput', 'execute/createAndRunTask', 'execute/runInTerminal', 'read/getNotebookSummary', 'read/readFile', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'edit/editNotebook', 'github/issue_read']
-model: Claude Sonnet 4.5 (copilot)
 handoffs:
   - label: Review Architecture Design
     agent: architect
