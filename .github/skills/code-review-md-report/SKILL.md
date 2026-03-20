@@ -57,6 +57,10 @@ Use the following template **exactly** as the structure for the report file. Rep
 
 {1-2 sentence justification for the verdict}
 
+## Action Items
+
+{List of recommended next steps for the coder}
+
 ## Summary
 
 {2-4 sentence overview of the implementation quality. Is it faithful to the design? What are the main strengths and concerns?}

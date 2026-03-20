@@ -190,6 +190,11 @@ Use below table to determine the skill you will use to generate the report:
 
 In case of not being able to use the skill, report a error and produce a simple markdown report.
 
+**Must include in the report:**
+ANY format should contain an *Action Items* with the recommended next steps for the coder.
+If the skill does not mention it, add it anyway in the summary section.
+ 
+ 
 ## Error Recovery
 
 **Missing design document:** Flag as 🔴 BLOCKER. Review what is possible with available documents and note reduced confidence.
