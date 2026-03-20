@@ -215,9 +215,10 @@ If the skill does not mention it, add it anyway in the summary section.
 
 ## Completion Protocol
 
-After completing all review dimensions, output this block verbatim before triggering any handoff:
+After completing all review dimensions, output this HANDOFF block verbatim before triggering any handoff:
 
-```review-summary
+```
+HANDOFF_START
 issue-id: {GitHub issue number}
 review-dimensions: {comma-separated: design-conformance | architecture | test-quality | code-quality}
 build-status: {PASS | FAIL | NOT_VERIFIED}
@@ -230,9 +231,8 @@ failing-tests-list: {comma-separated list of failing tests, or NONE}
 files-reviewed: {comma-separated relative paths}
 deviations-from-design: {description or NONE}
 next-steps: {brief description of next steps}
-handoff-to: {agent-name | HUMAN}
+HANDOFF_END
 ```
-
 
 ## Input Variables
 - **issueId** (required): GitHub issue number — extracted via `#(\d+)`

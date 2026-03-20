@@ -59,7 +59,10 @@ Use the following template **exactly** as the structure for the report file. Rep
 
 ## Action Items
 
-{List of recommended next steps for the coder}
+{Recommended actions based on the verdict:}
+{- If REQUEST CHANGES: enumerate the blockers to resolve}
+{- If APPROVE WITH SUGGESTIONS: list the suggestions worth considering}
+{- If APPROVE: state readiness for merge}
 
 ## Summary
 
@@ -152,12 +155,6 @@ Use the following template **exactly** as the structure for the report file. Rep
 |-----------------|--------|---------|
 | {Interface/DTO/Entity name from design} | {✅ Matches \| ⚠️ Drifted \| ❌ Missing \| ➕ Extra} | {Remark refs or "—"} |
 
-## Next Steps
-
-{Recommended actions based on the verdict:}
-{- If REQUEST CHANGES: enumerate the blockers to resolve}
-{- If APPROVE WITH SUGGESTIONS: list the suggestions worth considering}
-{- If APPROVE: state readiness for merge}
 ```
 
 ---

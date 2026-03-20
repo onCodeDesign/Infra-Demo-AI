@@ -182,7 +182,6 @@ test-iterations: {number of test fix attempts}
 design-deviations: NONE | {list with justification}
 commits: "{comma-separated list of commits. Format: '{commit-id}: {message}', {commit-id}: {message}'}"
 next-steps: {brief description of next steps}
-handoff-to: {agent-name | HUMAN}
 HANDOFF_END
 ```
 
