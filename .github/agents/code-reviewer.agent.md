@@ -12,7 +12,7 @@ handoffs:
   - label: Apply Approved Remarks
     agent: coder
     prompt: |
-      Foreach remark in report at [REVIEW_REPORT_PATH], apply only those that improve code quality without deviating from the detailed design for issue #{issue-id}
+      [Mode: Apply Remarks] Issue #{issue-id} - apply remarks from review report at [REVIEW_REPORT_PATH] with prior decisions at docs/code-reviews/{issue-id}-decisions.md
     send: true
   - label: Fix Failing Tests
     agent: coder
@@ -45,6 +45,11 @@ This agent does NOT modify code — it produces structured review feedback.
 - Every remark must reference a specific file and location
 - Every remark must explain **what** is wrong and **why**
 - Suggest a fix direction without writing full implementation code
+
+### 5. Respect Prior Decisions
+- Before raising a remark, check the decisions ledger (`docs/code-reviews/{issueId}-decisions.md`) if it exists
+- Do NOT re-raise a remark that targets the same file + location + concern as a prior decision, **unless** you can provide a new **correctness argument** (bug, architecture violation, or design non-conformance) that the prior decision lacked
+- If re-raising despite a prior decision, reference the prior decision ID and explain what new evidence justifies it
 
 ## Review Dimensions
 
@@ -120,6 +125,7 @@ Enforce rules from `.github/copilot-instructions.md`:
 - Fetch GitHub issue via `github/issue_read` for requirements and acceptance criteria
 - Read high-level design: `docs/workitems/{issueId}-design.md`
 - Read detailed design: `docs/workitems/{issueId}-detailed-design.md`
+- Read decisions ledger: `docs/code-reviews/{issueId}-decisions.md` (if exists — skip if this is the first review iteration)
 - Build the solution to verify build status 
 - Run the unit  test to verify results (if provided by coder)
 - If a design document is missing, note it as a 🔴 BLOCKER and proceed with available documents
@@ -146,6 +152,11 @@ Review for quality issues and scope creep.
 
 ### 6. Produce Review Report
 Output structured report (see Response Format below).
+
+### 7. Commit and Optionally Export the Report to Github or Azure DevOps 
+By default, when not instructed otherwise, commit the saved report to the repository.
+
+If instructed to export to GitHub or Azure DevOps, use the skill as indicated in `### Review Report` section below.
 
 ## Response Format
 
@@ -185,6 +196,11 @@ Use below table to determine the skill you will use to generate the report:
 
 In case of not being able to use the skill, report a error and produce a simple markdown report.
 
+**Must include in the report:**
+ANY format should contain an *Action Items* with the recommended next steps for the coder.
+If the skill does not mention it, add it anyway in the summary section.
+ 
+ 
 ## Error Recovery
 
 **Missing design document:** Flag as 🔴 BLOCKER. Review what is possible with available documents and note reduced confidence.
@@ -205,9 +221,10 @@ In case of not being able to use the skill, report a error and produce a simple 
 
 ## Completion Protocol
 
-After completing all review dimensions, output this block verbatim before triggering any handoff:
+After completing all review dimensions, output this HANDOFF block verbatim before triggering any handoff:
 
-```review-summary
+```
+HANDOFF_START
 issue-id: {GitHub issue number}
 review-dimensions: {comma-separated: design-conformance | architecture | test-quality | code-quality}
 build-status: {PASS | FAIL | NOT_VERIFIED}
@@ -220,9 +237,8 @@ failing-tests-list: {comma-separated list of failing tests, or NONE}
 files-reviewed: {comma-separated relative paths}
 deviations-from-design: {description or NONE}
 next-steps: {brief description of next steps}
-handoff-to: {agent-name | HUMAN}
+HANDOFF_END
 ```
-
 
 ## Input Variables
 - **issueId** (required): GitHub issue number — extracted via `#(\d+)`

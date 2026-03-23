@@ -34,7 +34,7 @@ Use the following template **exactly** as the structure for the report file. Rep
 ---
 
 ```markdown
-# Code Review Markdown Report
+# Code Review Report
 
 | Field | Value |
 |-------|-------|
@@ -56,6 +56,13 @@ Use the following template **exactly** as the structure for the report file. Rep
 **{APPROVE | REQUEST CHANGES | APPROVE WITH SUGGESTIONS}**
 
 {1-2 sentence justification for the verdict}
+
+## Action Items
+
+{Recommended actions based on the verdict:}
+{- If REQUEST CHANGES: enumerate the blockers to resolve}
+{- If APPROVE WITH SUGGESTIONS: list the suggestions worth considering}
+{- If APPROVE: state readiness for merge}
 
 ## Summary
 
@@ -148,12 +155,6 @@ Use the following template **exactly** as the structure for the report file. Rep
 |-----------------|--------|---------|
 | {Interface/DTO/Entity name from design} | {✅ Matches \| ⚠️ Drifted \| ❌ Missing \| ➕ Extra} | {Remark refs or "—"} |
 
-## Next Steps
-
-{Recommended actions based on the verdict:}
-{- If REQUEST CHANGES: enumerate the blockers to resolve}
-{- If APPROVE WITH SUGGESTIONS: list the suggestions worth considering}
-{- If APPROVE: state readiness for merge}
 ```
 
 ---
