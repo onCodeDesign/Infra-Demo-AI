@@ -12,7 +12,7 @@ handoffs:
   - label: Apply Approved Remarks
     agent: coder
     prompt: |
-      Foreach remark in report at [REVIEW_REPORT_PATH], apply only those that improve code quality without deviating from the detailed design for issue #{issue-id}
+      [Mode: Apply Remarks] Issue #{issue-id} - apply remarks from review report at [REVIEW_REPORT_PATH] with prior decisions at docs/code-reviews/{issue-id}-decisions.md
     send: true
   - label: Fix Failing Tests
     agent: coder
@@ -45,6 +45,11 @@ This agent does NOT modify code — it produces structured review feedback.
 - Every remark must reference a specific file and location
 - Every remark must explain **what** is wrong and **why**
 - Suggest a fix direction without writing full implementation code
+
+### 5. Respect Prior Decisions
+- Before raising a remark, check the decisions ledger (`docs/code-reviews/{issueId}-decisions.md`) if it exists
+- Do NOT re-raise a remark that targets the same file + location + concern as a prior decision, **unless** you can provide a new **correctness argument** (bug, architecture violation, or design non-conformance) that the prior decision lacked
+- If re-raising despite a prior decision, reference the prior decision ID and explain what new evidence justifies it
 
 ## Review Dimensions
 
@@ -120,6 +125,7 @@ Enforce rules from `.github/copilot-instructions.md`:
 - Fetch GitHub issue via `github/issue_read` for requirements and acceptance criteria
 - Read high-level design: `docs/workitems/{issueId}-design.md`
 - Read detailed design: `docs/workitems/{issueId}-detailed-design.md`
+- Read decisions ledger: `docs/code-reviews/{issueId}-decisions.md` (if exists — skip if this is the first review iteration)
 - Build the solution to verify build status 
 - Run the unit  test to verify results (if provided by coder)
 - If a design document is missing, note it as a 🔴 BLOCKER and proceed with available documents

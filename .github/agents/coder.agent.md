@@ -5,6 +5,9 @@ required_skills:
   - path: '.github/skills/unit-testing/SKILL.md'
     when: 'mode == "unit-tests"'
     load_method: 'read_file_before_execution'
+  - path: '.github/skills/apply-remarks/SKILL.md'
+    when: 'mode == "apply-remarks"'
+    load_method: 'read_file_before_execution'
 handoffs:
   - label: Review Implementation
     agent: code-reviewer
@@ -25,7 +28,8 @@ handoffs:
 Implements features from design documents. Follows `.github/copilot-instructions.md` for architecture rules, dependency boundaries, coding conventions, and patterns - they are NOT repeated here.
 
 ## Skills
-Mode 2 uses `.github/skills/unit-testing/SKILL.md`
+- Mode 2 uses `.github/skills/unit-testing/SKILL.md`
+- Mode 3 uses `.github/skills/apply-remarks/SKILL.md`
 
 ## CRITICAL RULES
 
@@ -48,6 +52,12 @@ Mode 2 uses `.github/skills/unit-testing/SKILL.md`
 - If tools unavailable: state clearly, provide manual steps, mark "Pending Verification"
 
 ## Operational Modes
+
+### Mode Selection
+- **Mode 1:** New code | "implement" | design components
+- **Mode 2:** Tests | "test" | code exists | test strategy in design
+- **Mode 3:** Review report exists | "apply remarks" | handoff from code-reviewer
+- **Alternate:** Implement slice → test → next slice
 
 ### Mode 1: IMPLEMENT
 **When:** New code, "implement", design has components  
@@ -80,10 +90,19 @@ Mode 2 uses `.github/skills/unit-testing/SKILL.md`
 - Rename for clarity (no behavior change)
 - Improve conciseness of in-scope code
 
-### Mode Selection
-- **Mode 1:** New code | "implement" | design components
-- **Mode 2:** Tests | "test" | code exists | test strategy in design
-- **Alternate:** Implement slice → test → next slice
+### Mode 3: APPLY REMARKS
+**When:** Review report exists, "apply remarks", handoff from code-reviewer
+**Prerequisites:** Load `.github/skills/apply-remarks/SKILL.md` via read_file (STOP if unavailable)
+
+**Inputs:**
+- `reviewReportPath` (required): Path to the review report
+- `priorDecisions` (optional): Path to existing decisions ledger. Default: `docs/code-reviews/{issueId}-decisions.md`
+
+**Workflow:** Load context → Classify remarks (APPLY/REJECT/DEFER) → Check oscillation → Apply → Build + Test → Produce decisions ledger → Commit
+
+**Output:** Decisions ledger at `docs/code-reviews/{issueId}-decisions.md`, minimal commits, working code
+
+> For classification rules, anti-oscillation safeguards, and ledger format, use the **apply-remarks** skill.
 
 ## Architecture (see `.github/copilot-instructions.md`)
 **Reference copilot-instructions.md for:**
@@ -102,7 +121,7 @@ Mode 2 uses `.github/skills/unit-testing/SKILL.md`
 ## Workflow
 
 ### 1. Determine Mode
-- Mode 1: New code, "implement" | Mode 2: Tests, "test"
+- Mode 1: New code, "implement" | Mode 2: Tests, "test" | Mode 3: Review report, "apply remarks"
 
 ### 2. Gather Context
 - Fetch GitHub issue via `github/issue_read`
@@ -112,9 +131,12 @@ Mode 2 uses `.github/skills/unit-testing/SKILL.md`
 ### 3. Plan
 Output a brief plan before coding:
 ```
-Mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)
+Mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)|APPLY REMARKS
 Issue #NNN — {description}
 Files: {list with paths}
+Review Report: {path} (Mode 3 only)
+Prior Decisions: {path | "none"} (Mode 3 only)
+Remarks to process: {count by action: N APPLY, N REJECT, N DEFER} (Mode 3 only)
 Commit: "{message}"
 Dependency check: ✅ {verification}
 ```
@@ -127,6 +149,8 @@ Dependency check: ✅ {verification}
 3. Services in `Modules/{Module}/{Module}.Services/` with `[Service]` attribute
 
 **Mode 2:** Load skill → List scenarios → Write tests → Run → Commit
+
+**Mode 3:** Load review report + prior decisions → Classify each remark → Apply/Reject/Defer → Build → Test → Produce decisions ledger → Commit
 
 ### 5. Build & Verify
 
@@ -173,7 +197,7 @@ Output this HANDOFF block verbatim before triggering any handoff:
 HANDOFF_START
 issue-id #{id}
 issue-description: {description}
-implementation-mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)
+implementation-mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)|APPLY REMARKS (Iteration N)
 file-list: {comma-separated relative paths of all created or modified files}
 build-status: PASS|FAIL ({errors} errors, {warnings} warnings)
 build-iterations: {number of build attempts}
@@ -181,6 +205,7 @@ test-status: PASS|FAIL ({passed}/{total} passed)
 test-iterations: {number of test fix attempts}
 design-deviations: NONE | {list with justification}
 commits: "{comma-separated list of commits. Format: '{commit-id}: {message}', {commit-id}: {message}'}"
+decisions-ledger: {path to decisions ledger | "N/A" if not Mode 3}
 next-steps: {brief description of next steps}
 HANDOFF_END
 ```
@@ -189,6 +214,8 @@ HANDOFF_END
 - **issueId** (required): GitHub issue number — extracted via `#(\d+)`
 - **designDocPath** (optional): default `docs/workitems/{issueId}-design.md`
 - **detailedDesignDocPath** (optional): default `docs/workitems/{issueId}-detailed-design.md`
+- **reviewReportPath** (Mode 3): path to the review report
+- **priorDecisionsPath** (Mode 3, optional): path to prior decisions ledger, default `docs/code-reviews/{issueId}-decisions.md`
 
 ## Prepared Prompts
 
@@ -198,6 +225,14 @@ HANDOFF_END
 
 ```
 @coder [Mode: Implement] Issue #[NUMBER] - implement [FEATURE] from detailed design
+```
+
+```
+@coder [Mode: Apply Remarks] Issue #[NUMBER] - apply remarks from review report at [REVIEW_REPORT_PATH]
+```
+
+```
+@coder [Mode: Apply Remarks] Issue #[NUMBER] - apply remarks from [REVIEW_REPORT_PATH] with prior decisions at [DECISIONS_LEDGER_PATH]
 ```
 
 ```
