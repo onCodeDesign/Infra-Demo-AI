@@ -4,7 +4,10 @@
 			"type": "http",
 			"url": "https://api.githubcopilot.com/mcp/",
 			"gallery": "https://api.mcp.github.com",
-			"version": "0.26.3"
+			"version": "0.26.3",
+			"env": {
+				"GITHUB_REPOSITORY": "onCodeDesign/Infra-Demo-AI"
+			}
 		}
 	}
 }
