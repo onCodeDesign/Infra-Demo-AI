@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using System.Security.Cryptography.X509Certificates;
 using AppBoot.DependencyInjection;
 using Contracts.Sales;
 using DataAccess;
