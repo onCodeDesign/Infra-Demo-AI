@@ -13,7 +13,7 @@ public class CustomerServiceTests
     [Fact]
     public void GetCustomersWithOverdueOrders_WithNoOverdueOrders_ReturnsEmptyArray()
     {
-        var repositoryStub = new FakeRepository(Array.Empty<SalesOrderHeader>());
+        var repositoryStub = new RepositoryStub(Array.Empty<SalesOrderHeader>());
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -26,7 +26,7 @@ public class CustomerServiceTests
     {
         var customer = CreateCustomer(1, "John", "Doe", "Acme Corp");
         var overdueOrder = CreateOrder(1, customer, DateTime.Today.AddDays(-5), SalesOrderHeaderStatusValues.InProcess);
-        var repositoryStub = new FakeRepository(new[] { overdueOrder });
+        var repositoryStub = new RepositoryStub(new[] { overdueOrder });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -41,7 +41,7 @@ public class CustomerServiceTests
         var order1 = CreateOrder(1, customer, DateTime.Today.AddDays(-10), SalesOrderHeaderStatusValues.InProcess);
         var order2 = CreateOrder(2, customer, DateTime.Today.AddDays(-5), SalesOrderHeaderStatusValues.Approved);
         var order3 = CreateOrder(3, customer, DateTime.Today.AddDays(-3), SalesOrderHeaderStatusValues.Backordered);
-        var repositoryStub = new FakeRepository(new[] { order1, order2, order3 });
+        var repositoryStub = new RepositoryStub(new[] { order1, order2, order3 });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -58,7 +58,7 @@ public class CustomerServiceTests
         var customer = CreateCustomer(1, "Bob", "Jones", "Gamma Ltd");
         var overdueOrder = CreateOrder(1, customer, DateTime.Today.AddDays(-5), SalesOrderHeaderStatusValues.InProcess);
         var shippedOrder = CreateOrder(2, customer, DateTime.Today.AddDays(-10), SalesOrderHeaderStatusValues.Shipped);
-        var repositoryStub = new FakeRepository(new[] { overdueOrder, shippedOrder });
+        var repositoryStub = new RepositoryStub(new[] { overdueOrder, shippedOrder });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -75,7 +75,7 @@ public class CustomerServiceTests
         var customer = CreateCustomer(1, "Alice", "Brown", "Delta Co");
         var overdueOrder = CreateOrder(1, customer, DateTime.Today.AddDays(-7), SalesOrderHeaderStatusValues.InProcess);
         var cancelledOrder = CreateOrder(2, customer, DateTime.Today.AddDays(-15), SalesOrderHeaderStatusValues.Cancelled);
-        var repositoryStub = new FakeRepository(new[] { overdueOrder, cancelledOrder });
+        var repositoryStub = new RepositoryStub(new[] { overdueOrder, cancelledOrder });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -92,7 +92,7 @@ public class CustomerServiceTests
         var customer = CreateCustomer(1, "Tom", "Green", "Epsilon Corp");
         var overdueOrder = CreateOrder(1, customer, DateTime.Today.AddDays(-3), SalesOrderHeaderStatusValues.InProcess);
         var futureOrder = CreateOrder(2, customer, DateTime.Today.AddDays(5), SalesOrderHeaderStatusValues.InProcess);
-        var repositoryStub = new FakeRepository(new[] { overdueOrder, futureOrder });
+        var repositoryStub = new RepositoryStub(new[] { overdueOrder, futureOrder });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -114,7 +114,7 @@ public class CustomerServiceTests
         var order2 = CreateOrder(2, customer2, DateTime.Today.AddDays(-10), SalesOrderHeaderStatusValues.InProcess);
         var order3 = CreateOrder(3, customer3, DateTime.Today.AddDays(-5), SalesOrderHeaderStatusValues.InProcess);
         
-        var repositoryStub = new FakeRepository(new[] { order1, order2, order3 });
+        var repositoryStub = new RepositoryStub(new[] { order1, order2, order3 });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -153,7 +153,7 @@ public class CustomerServiceTests
     {
         var customer = CreateCustomer(1, "Sarah", "Wilson", null);
         var overdueOrder = CreateOrder(1, customer, DateTime.Today.AddDays(-2), SalesOrderHeaderStatusValues.InProcess);
-        var repositoryStub = new FakeRepository(new[] { overdueOrder });
+        var repositoryStub = new RepositoryStub(new[] { overdueOrder });
         var target = GetTarget(repositoryStub);
 
         var result = target.GetCustomersWithOverdueOrders();
@@ -161,9 +161,22 @@ public class CustomerServiceTests
         result.Should().ContainSingle(c => c.CustomerName == "Sarah Wilson");
     }
 
+    [Fact]
+    public void GetCustomersWithOverdueOrders_HandlesEmptyNameFields_UsesCustomerId()
+    {
+        var customer = CreateCustomer(1, "", "", null);
+        var overdueOrder = CreateOrder(1, customer, DateTime.Today.AddDays(-2), SalesOrderHeaderStatusValues.InProcess);
+        var repositoryStub = new RepositoryStub(new[] { overdueOrder });
+        var target = GetTarget(repositoryStub);
+
+        var result = target.GetCustomersWithOverdueOrders();
+
+        result.Should().ContainSingle(c => c.CustomerName == "Customer 1");
+    }
+
     // ── Helpers ────────────────────────────────────────────────
 
-    private static CustomerService GetTarget(FakeRepository repositoryStub)
+    private static CustomerService GetTarget(IRepository repositoryStub)
         => new CustomerService(repositoryStub, Substitute.For<ILogger<CustomerService>>());
 
     private static Customer CreateCustomer(int id, string firstName, string lastName, string? companyName)
@@ -194,11 +207,11 @@ public class CustomerServiceTests
         return order;
     }
 
-    private class FakeRepository : IRepository
+    private class RepositoryStub : IRepository
     {
         private readonly List<object> data = new();
 
-        public FakeRepository(SalesOrderHeader[] orders)
+        public RepositoryStub(SalesOrderHeader[] orders)
         {
             data.AddRange(orders);
         }
