@@ -217,7 +217,7 @@ Save design as `docs/workitems/{issue-id}-design.md` with structure:
 ### 8. Commit & Handover
 - Create `docs/workitems/` directory if missing
 - Save design document in a new file named `{issue-id}-design.md`
-- Commit with message: `[AI:arc, HUMAN:refine, MODEL: sonnet-4.5] docs: Add architecture design for #{issue-id}`
+- Commit with message: `[AI:arc, HUMAN:-, MODEL: sonnet-4.5] docs: Add architecture design for #{issue-id}`
 - Output message: `Design committed. Ready for handover to @architect-reviewer`
 
 ## What This Agent Does NOT Do

@@ -504,7 +504,7 @@ Save detailed design as `docs/workitems/{issue-id}-detailed-design.md`:
 ### 10. Commit & Handover
 - Create `docs/workitems/` directory if missing
 - Save detailed design document as `{issue-id}-detailed-design.md`
-- Commit with message: `[AI:det-des, HUMAN:refine, MODEL: sonnet-4.5] docs: Add detailed design for #{issue-id}`
+- Commit with message: `[AI:det-des, HUMAN:-, MODEL: sonnet-4.5] docs: Add detailed design for #{issue-id}`
 - Output message: `Detailed design committed. Ready for handover to @detailed-designer-reviewer`
 
 ## When Reviewing
