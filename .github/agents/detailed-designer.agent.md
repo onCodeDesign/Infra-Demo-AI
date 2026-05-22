@@ -53,7 +53,12 @@ The `[REPORT_FOLDER]` is **required** when requesting a review — it is the fol
 
 **Apply Review Remarks Selectively:**
 ```
-@detailed-designer For each remark in the review of issue #[NUMBER] detailed design: validate if it aligns with architecture rules, assess if it adds value, then apply with justification or reject with reasoning. Format as: Remark #X | Decision: ✅/❌ | Reason | Changes.
+@detailed-designer Apply remarks from review report [REVIEW_REPORT_PATH] to the detailed design for issue #[NUMBER]
+```
+
+Optionally pass a prior decisions ledger for iterative review cycles:
+```
+@detailed-designer Apply remarks from [REVIEW_REPORT_PATH] to the detailed design for issue #[NUMBER] with prior decisions at [DECISIONS_LEDGER_PATH]
 ```
 
 Usage examples:
@@ -538,6 +543,39 @@ Provide specific feedback on:
 After completing the review, you MUST save the findings as a Markdown report file. Do NOT only post the review in chat — always persist it as a file.
 
 > For report file location, template, severity rules, and post-save commit convention, use the **design-review-md-report** skill.
+
+## When Applying Review Remarks
+
+### Required Inputs
+- **issueId**: GitHub issue number
+- **reviewReportPath** (required): Path to the review report produced by the **design-review-md-report** skill
+- **detailedDesignPath** (inferred): Path to the detailed design document being amended. Default: `docs/workitems/{issueId}-detailed-design.md`
+- **priorDecisionsPath** (optional): Existing decisions ledger from a prior iteration. Default: `docs/workitems/{issueId}-detailed-design-decisions.md`
+
+### Skill Invocation
+Use the **apply-remarks** skill with the following bindings:
+
+| Skill input | Value |
+|-------------|-------|
+| `reviewReportPath` | from prompt |
+| `priorDecisionsPath` | from prompt (or default above) |
+| `decisionsLedgerPath` | `docs/workitems/{issueId}-detailed-design-decisions.md` |
+| `referenceDocuments` | the approved architecture design (`docs/workitems/{issueId}-design.md`) and the repository's `.github/copilot-instructions.md` |
+| Target (locator) | `detailedDesignPath` |
+| Location (locator) | Section heading from the design doc (e.g., `## Module-Level Contracts > ### Interfaces`) |
+| Verification step | Doc render check only — no build/test |
+
+> For classification rules, rejection reason codes, anti-oscillation safeguards, and decisions ledger format, use the **apply-remarks** skill.
+
+### Domain-Specific `DESIGN_CONFLICT` Triggers
+In addition to the skill's generic criteria, REJECT a remark with `DESIGN_CONFLICT` when it:
+- Asks to add actual implementation code (method bodies, LINQ queries) — the design must remain spec-only
+- Conflicts with the approved architecture design
+- Violates the repository's architecture constraints (dependency rules, cross-module references, etc.)
+
+### Commit & Output
+- Commit message: `[AI:det-des, HUMAN:-, MODEL: sonnet-4.5] docs: Apply review remarks to detailed design for #{issueId} (Iteration {N})`
+- Output chat summary: iteration number, counts (applied/rejected/deferred), oscillation conflicts (if any), and path to the updated decisions ledger.
 
 ## What This Agent Does NOT Do
 - Does NOT implement actual code (that's for implementation phase)

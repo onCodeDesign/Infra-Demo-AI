@@ -214,7 +214,7 @@ Domain-specific guidance documents located in `.github/skills/`. When a task mat
 | **unit-testing** | Test patterns using xUnit, NSubstitute, FluentAssertions: AAA structure, fake naming (`Stub`/`Mock`), collection assertions, `GetTarget` helpers |
 | **code-review-md-report** | Structured code review report template for PR-importable Markdown output (GitHub / Azure DevOps compatible) |
 | **design-review-md-report** | Structured detailed design review report template: quality checklist, severity-grouped remarks, verdict, and commit convention |
-| **apply-remarks** | Process code review remarks with anti-oscillation safeguards: classification rules, decisions ledger format, oscillation detection |
+| **apply-remarks** | Process review remarks (code or design) with anti-oscillation safeguards: classification rules, decisions ledger format, oscillation detection |
 
 Usage pattern in this file: `> For [topic], use the **skill-name** skill.`
 
