@@ -213,6 +213,7 @@ Domain-specific guidance documents located in `.github/skills/`. When a task mat
 | **add-module-plugin** | Step-by-step guide for adding new modules: folder structure, plugin registration, `IModule` initialization, build-order dependencies in `.sln` |
 | **unit-testing** | Test patterns using xUnit, NSubstitute, FluentAssertions: AAA structure, fake naming (`Stub`/`Mock`), collection assertions, `GetTarget` helpers |
 | **code-review-md-report** | Structured code review report template for PR-importable Markdown output (GitHub / Azure DevOps compatible) |
+| **design-review-md-report** | Structured detailed design review report template: quality checklist, severity-grouped remarks, verdict, and commit convention |
 | **apply-remarks** | Process code review remarks with anti-oscillation safeguards: classification rules, decisions ledger format, oscillation detection |
 
 Usage pattern in this file: `> For [topic], use the **skill-name** skill.`

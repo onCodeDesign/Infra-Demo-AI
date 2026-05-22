@@ -46,8 +46,10 @@ You can invoke this agent using these templates:
 
 **Review Detailed Design:**
 ```
-@detailed-designer Review the detailed design for issue #[NUMBER] from file docs/workitems/[NUMBER]-detailed-design.md
+@detailed-designer Review the detailed design for issue #[NUMBER] from file docs/workitems/[NUMBER]-detailed-design.md and save the review report to [REPORT_FOLDER]
 ```
+
+The `[REPORT_FOLDER]` is **required** when requesting a review — it is the folder where the Markdown review report will be saved (e.g., `docs/reviews/` or `docs/workitems/`).
 
 **Apply Review Remarks Selectively:**
 ```
@@ -95,7 +97,7 @@ Every detailed design must meet these criteria:
 
 ### 2. Define Module-Level Contracts
 
-For each interface identified in the architecture design:
+For each interface identified in the architecture design
 
 #### Interface Definitions
 Specify complete interface signatures:
@@ -509,6 +511,12 @@ Save detailed design as `docs/workitems/{issue-id}-detailed-design.md`:
 
 ## When Reviewing
 
+### Required Inputs for Review
+- **issueId**: GitHub issue number being reviewed
+- **detailedDesignPath** (inferred): Path to the detailed design document to review. Default: `docs/workitems/{issueId}-detailed-design.md`
+- **reportFolder** (required): Folder path where the Markdown review report will be saved. This MUST be passed in the prompt. If not provided, ask the user before proceeding.
+
+### Review Checks
 When asked to review a detailed design document, check for:
 - **Completeness**: Are all interfaces, DTOs, and exceptions defined?
 - **Clarity**: Can a developer implement without asking questions?
@@ -524,6 +532,12 @@ Provide specific feedback on:
 - Ambiguous edge case handling
 - Insufficient test coverage
 - Unclear implementation tasks
+
+### Review Report Output (Markdown)
+
+After completing the review, you MUST save the findings as a Markdown report file. Do NOT only post the review in chat — always persist it as a file.
+
+> For report file location, template, severity rules, and post-save commit convention, use the **design-review-md-report** skill.
 
 ## What This Agent Does NOT Do
 - Does NOT implement actual code (that's for implementation phase)
