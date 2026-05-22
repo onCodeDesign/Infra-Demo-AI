@@ -67,3 +67,6 @@ nunit-*.xml
 .vscode/*.code-workspace
 .vscode/workspaceStorage/
 .vscode/.history/
+
+# Ignore Code Fabric workflow state
+.cFabric/workflow/

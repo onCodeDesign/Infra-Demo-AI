@@ -1,0 +1,1 @@
+Create detailed design for issue #{issueId}

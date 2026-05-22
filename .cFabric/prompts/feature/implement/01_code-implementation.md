@@ -1,0 +1,2 @@
+Use Mode 1 to implement feature #{issueId} using high-level design from docs/workitems/{issueId}-design.md and detailed design from docs/workitems/{issueId}-detailed-design.md.
+When you finish append the HANDOFF block exactly as in the format in #Completion Protocol

@@ -1,0 +1,1 @@
+Make a Technical Design for issue #{issueId}. If you cannot connect to Github, use the issue description from file: `.cFabric\workflow\1\feature-{issueId}.md`

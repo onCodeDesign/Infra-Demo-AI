@@ -1,0 +1,1 @@
+Review the detailed design for issue #{issueId} from file docs/workitems/{issueId}-detailed-design.md and save the review report to .cFabric/workflow/{issueId}/ folder
