@@ -3,7 +3,7 @@
 **Issue**: #1  
 **Architecture Design**: docs/workitems/1-design.md  
 **Date**: 2026-05-22  
-**Status**: Awaiting Review
+**Status**: AI: Review Applied - APPROVE WITH SUGGESTIONS - iteration 1
 
 ---
 
@@ -155,7 +155,7 @@ Not Required. Read-only operation is inherently idempotent.
 - `GetCustomersWithOverdueOrders_OldestOverdueDueDate_IsMinimumDueDatePerCustomer`
 - `GetCustomersWithOverdueOrders_CustomerWithMixedOrders_OnlyCountsOverdueOnes`
 
-**`OverdueCustomersConsoleCommandTests`** (`Sales.ConsoleCommands` test project, if present)
+**`OverdueCustomersConsoleCommandTests`** (`Sales.ConsoleCommands.UnitTests` project)
 
 - `Execute_WhenNoOverdueCustomers_WritesNoResultsMessage`
 - `Execute_WhenOverdueCustomersExist_WritesEachCustomer`
@@ -185,12 +185,7 @@ Not Required. The feature involves a single module with a single query; no cross
 - [ ] Extend `ICustomerService` with `GetCustomersWithOverdueOrders()` in `Modules/Contracts/Sales/ICustomerService.cs`
 
 **Phase 2: Service Implementation**
-- [ ] Implement `GetCustomersWithOverdueOrders()` in `Modules/Sales/Sales.Services/CustomerService.cs`
-  - Query via `IRepository.GetEntities<Customer>()`
-  - Filter: any `SalesOrderHeader` where `DueDate < DateTime.Today` AND `Status` not in `{Shipped, Cancelled}`
-  - Group by customer, keep only customers with at least one such order
-  - Project to `OverdueCustomerSummary` with `CustomerName = $"{FirstName} {LastName}"`, `OverdueOrderCount`, `OldestOverdueDueDate = Min(DueDate)`
-  - Order by `OldestOverdueDueDate` ascending
+- [ ] Implement `GetCustomersWithOverdueOrders()` in `Modules/Sales/Sales.Services/CustomerService.cs` per the interface contract and requirements summary
 - [ ] Add `ILogger<CustomerService>` injection and log entry/result count at `Debug` level
 
 **Phase 3: Console Command**
@@ -198,10 +193,11 @@ Not Required. The feature involves a single module with a single query; no cross
   - `[Service(typeof(IConsoleCommand))]`
   - `MenuLabel` = `"Show customers with overdue orders"`
   - Call `ICustomerService.GetCustomersWithOverdueOrders()`
-  - Write each `OverdueCustomerSummary` record to `IConsole`; write a no-results message when empty
+  - Write each `OverdueCustomerSummary` record to `IConsole` using format `"{CustomerName} | Overdue: {OverdueOrderCount} | Oldest: {OldestOverdueDueDate:d}"`; write a no-results message when empty
 
 **Phase 4: Unit Tests**
 - [ ] Implement `CustomerServiceTests` unit tests (listed above) in `Sales.Services.UnitTests`
+- [ ] Verify `Sales.ConsoleCommands.UnitTests` project exists; create it if not (following unit-testing skill conventions)
 - [ ] Implement `OverdueCustomersConsoleCommandTests` (listed above)
 
 ---
