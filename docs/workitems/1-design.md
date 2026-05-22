@@ -2,7 +2,7 @@
 
 **Issue**: #1  
 **Date**: 2026-05-22  
-**Status**: Awaiting Review
+**Status**: Reviewed
 
 ---
 
@@ -33,11 +33,6 @@ Display all customers who have at least one overdue order. An order is overdue w
 
 The existing `CustomerService` is extended with one new method to preserve cohesion; no new service is warranted since this remains a customer-centric read query.
 
-### Contracts (new types in `Contracts/Sales/`)
-
-- **`OverdueCustomerData`** — DTO: customer name, overdue order count, oldest overdue date
-- **`ICustomerService`** — extend with `GetCustomersWithOverdueOrders()`
-
 ### Entities
 
 No entity changes. Existing entities are sufficient:
@@ -58,7 +53,7 @@ No entity changes. Existing entities are sufficient:
 1. User selects "Show customers with overdue orders" in the console menu
 2. OverdueCustomersConsoleCommand calls ICustomerService.GetCustomersWithOverdueOrders()
 3. CustomerService queries IRepository:
-   - Filter: SalesOrderHeaders where DueDate < today AND Status not in {Shipped, Cancelled}
+   - Filter: SalesOrderHeaders where DueDate < today AND Status is open (not closed)
    - Group by Customer
    - Keep customers with at least one such order
    - Project to OverdueCustomerData (name, count, oldest due date)
@@ -98,4 +93,3 @@ sequenceDiagram
 
 - Detailed design: contract signatures, exception handling, null-safety rules
 - Work plan: contract → service → console command → unit tests
-- Refine by reviewer agent
