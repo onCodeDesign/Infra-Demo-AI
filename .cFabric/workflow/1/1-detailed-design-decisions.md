@@ -26,3 +26,33 @@ _None._
 ### Oscillation Conflicts
 
 _None detected._
+
+---
+
+## Iteration 2 — 2026-05-22T19:18:11+03:00
+
+**Review report:** `.cFabric\workflow\1\1-detailed-design-review_20260522-1852.md`
+**Prior decisions:** `.cFabric\workflow\1\1-detailed-design-decisions.md` (Iteration 1)
+
+### Applied
+
+| ID | Remark | Target | Location | Rationale |
+|----|--------|--------|----------|-----------|
+| D2.1 | R1: `OverdueCustomerSummary` declared as `sealed class` instead of `sealed record` | `docs/workitems/1-detailed-design.md` | Module-Level Contracts > DTOs | Changed to `sealed record` to align with the DTO convention prescribed by the detailed designer specification; `required`/`init` properties carry over unchanged. |
+| D2.2 | R2: DTO name differs from the approved architecture design | `docs/workitems/1-detailed-design.md` | Module-Level Contracts > DTOs | Added an inline `> Note:` before the DTO definition acknowledging the rename from `OverdueCustomerData` with a brief rationale, closing the traceability gap. |
+| D2.3 | R3: Console command test project creation not surfaced as a prerequisite | `docs/workitems/1-detailed-design.md` | Implementation Plan > Phase 1 / Phase 4 | Moved the project-creation task from Phase 4 to Phase 1 so the test scaffold is available before the console command is written; removed redundant step from Phase 4. Prior decision D1.2 addressed conditional scope (different concern). |
+| D2.4 | R4: Adding a method to `ICustomerService` will break existing mocks | `docs/workitems/1-detailed-design.md` | Implementation Plan > Phase 2: Service Implementation | Added an inline Note in Phase 2 warning implementers to update affected `Substitute.For<ICustomerService>()` test setups after extending the interface. |
+
+### Rejected
+
+_None._
+
+### Deferred
+
+| ID | Remark | Target | Location | Rationale |
+|----|--------|--------|----------|-----------|
+| D2.5 | R5: `CustomerData` existing DTO pattern does not use `required`/`init` | `docs/workitems/1-detailed-design.md` | Module-Level Contracts > DTOs | OUT_OF_SCOPE — The note itself states this is not a concern for this feature; legacy DTO clean-up belongs in a separate issue. |
+
+### Oscillation Conflicts
+
+_None detected.__

@@ -3,7 +3,7 @@
 **Issue**: #1  
 **Architecture Design**: docs/workitems/1-design.md  
 **Date**: 2026-05-22  
-**Status**: AI: Review Applied - APPROVE WITH SUGGESTIONS - iteration 1
+**Status**: AI: Review Applied - APPROVE WITH SUGGESTIONS - iteration 2
 
 ---
 
@@ -44,10 +44,12 @@ public interface ICustomerService
 
 New file `Modules/Contracts/Sales/OverdueCustomerSummary.cs`:
 
+> **Note:** Renamed from `OverdueCustomerData` (architecture design, `1-design.md`) to `OverdueCustomerSummary` for clarity — the `Summary` suffix better conveys that this is an aggregated per-customer projection, not a raw customer record.
+
 ```csharp
 namespace Contracts.Sales;
 
-public sealed class OverdueCustomerSummary
+public sealed record OverdueCustomerSummary
 {
     /// <summary>
     /// Full name of the customer: "{FirstName} {LastName}".
@@ -183,10 +185,12 @@ Not Required. The feature involves a single module with a single query; no cross
 **Phase 1: Contracts**
 - [ ] Add `OverdueCustomerSummary` DTO to `Modules/Contracts/Sales/OverdueCustomerSummary.cs`
 - [ ] Extend `ICustomerService` with `GetCustomersWithOverdueOrders()` in `Modules/Contracts/Sales/ICustomerService.cs`
+- [ ] Create `Sales.ConsoleCommands.UnitTests` project if it does not exist (following unit-testing skill conventions)
 
 **Phase 2: Service Implementation**
 - [ ] Implement `GetCustomersWithOverdueOrders()` in `Modules/Sales/Sales.Services/CustomerService.cs` per the interface contract and requirements summary
 - [ ] Add `ILogger<CustomerService>` injection and log entry/result count at `Debug` level
+- Note: Extending `ICustomerService` will cause compile errors in any existing `Sales.Services.UnitTests` test that creates a `Substitute.For<ICustomerService>()` without configuring the new method — update affected test setups.
 
 **Phase 3: Console Command**
 - [ ] Create `Modules/Sales/Sales.ConsoleCommands/OverdueCustomersConsoleCommand.cs`
@@ -197,7 +201,6 @@ Not Required. The feature involves a single module with a single query; no cross
 
 **Phase 4: Unit Tests**
 - [ ] Implement `CustomerServiceTests` unit tests (listed above) in `Sales.Services.UnitTests`
-- [ ] Verify `Sales.ConsoleCommands.UnitTests` project exists; create it if not (following unit-testing skill conventions)
 - [ ] Implement `OverdueCustomersConsoleCommandTests` (listed above)
 
 ---
