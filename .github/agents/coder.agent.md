@@ -204,7 +204,7 @@ build-iterations: {number of build attempts}
 test-status: PASS|FAIL ({passed}/{total} passed)
 test-iterations: {number of test fix attempts}
 design-deviations: NONE | {list with justification}
-commits: "{comma-separated list of commits. Format: '{commit-id}: {message}', {commit-id}: {message}'}"
+commits: "{comma-separated list of commits. Format: '{commit-id}, {commit-id}, ...'}"
 decisions-ledger: {path to decisions ledger | "N/A" if not Mode 3}
 next-steps: {brief description of next steps}
 HANDOFF_END

@@ -79,14 +79,15 @@ If the status already contains "AI: Review Applied - {verdict} - iteration {M}",
 ### Location
 
 Save to the `decisionsLedgerPath` supplied by the invoking agent. If the file already exists from a prior iteration, **append** the new iteration — do NOT overwrite prior iterations.
+When the path is not provided, use the defaults in below table.
 
-Recommended conventions per invoking agent:
+File name conventions and default paths per invoking agent:
 
-| Invoking agent | Recommended `decisionsLedgerPath` |
-|----------------|-----------------------------------|
-| `coder` (code review remarks) | `docs/code-reviews/{issueId}-decisions.md` |
-| `detailed-designer` (design review remarks) | `docs/workitems/{issueId}-detailed-design-decisions.md` |
-| `architect` (architecture review remarks) | `docs/workitems/{issueId}-design-decisions.md` |
+| Invoking agent | Default `decisionsLedgerPath` | File name |
+|----------------|-----------------------------------|-----------------------------------|
+| `coder` (code review remarks) | `docs/code-reviews/` | `{issueId}-code-review-decisions.md` |
+| `detailed-designer` (design review remarks) | `docs/workitems/` | `{issueId}-detailed-design-decisions.md` |
+| `architect` (architecture review remarks) | `docs/workitems/` | `{issueId}-design-decisions.md` |
 
 ### Locator Semantics
 
