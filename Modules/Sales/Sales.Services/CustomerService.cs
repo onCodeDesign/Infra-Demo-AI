@@ -9,7 +9,7 @@ using Sales.DataModel.Values;
 namespace Sales.Services;
 
 [Service(typeof(ICustomerService))]
-class CustomerService(IRepository repository, ILogger<CustomerService> logger) : ICustomerService
+internal class CustomerService(IRepository repository, ILogger<CustomerService> logger) : ICustomerService
 {
     public CustomerData[] GetCustomersWithOrders()
     {

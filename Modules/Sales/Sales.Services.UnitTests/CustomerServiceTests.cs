@@ -89,11 +89,14 @@ public class CustomerServiceTests
         var customerA = CreateCustomer(1, "Alpha", "A");
         var customerB = CreateCustomer(2, "Beta", "B");
         var customerC = CreateCustomer(3, "Gamma", "C");
+        var dateA = DateTime.Today.AddDays(-10);
+        var dateB = DateTime.Today.AddDays(-5);
+        var dateC = DateTime.Today.AddDays(-3);
         var orders = new[]
         {
-            CreateOrder(customerB, DateTime.Today.AddDays(-5), SalesOrderHeaderStatusValues.InProcess),
-            CreateOrder(customerC, DateTime.Today.AddDays(-3), SalesOrderHeaderStatusValues.InProcess),
-            CreateOrder(customerA, DateTime.Today.AddDays(-10), SalesOrderHeaderStatusValues.InProcess)
+            CreateOrder(customerB, dateB, SalesOrderHeaderStatusValues.InProcess),
+            CreateOrder(customerC, dateC, SalesOrderHeaderStatusValues.InProcess),
+            CreateOrder(customerA, dateA, SalesOrderHeaderStatusValues.InProcess)
         };
         var target = GetTarget(orders);
 
@@ -102,11 +105,11 @@ public class CustomerServiceTests
         result.Should().BeEquivalentTo(
             new[]
             {
-                new { CustomerName = "Alpha A" },
-                new { CustomerName = "Beta B" },
-                new { CustomerName = "Gamma C" }
+                new { CustomerName = "Alpha A", OldestOverdueDueDate = dateA },
+                new { CustomerName = "Beta B", OldestOverdueDueDate = dateB },
+                new { CustomerName = "Gamma C", OldestOverdueDueDate = dateC }
             },
-            options => options.Including(x => x.CustomerName).WithStrictOrdering()
+            options => options.Including(x => x.CustomerName).Including(x => x.OldestOverdueDueDate).WithStrictOrdering()
         );
     }
 
