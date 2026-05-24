@@ -176,8 +176,6 @@ public class CustomerServiceTests
         result.Should().ContainSingle(x => x.OverdueOrderCount == 1);
     }
 
-    // ── Helpers ────────────────────────────────────────────────
-
     private static CustomerService GetTarget(SalesOrderHeader[] orders)
     {
         var repositoryStub = new FakeRepository(orders);
