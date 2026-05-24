@@ -1,14 +1,15 @@
 using System.Linq.Expressions;
-using System.Security.Cryptography.X509Certificates;
 using AppBoot.DependencyInjection;
 using Contracts.Sales;
 using DataAccess;
+using Microsoft.Extensions.Logging;
 using Sales.DataModel.SalesLT;
+using Sales.DataModel.Values;
 
 namespace Sales.Services;
 
 [Service(typeof(ICustomerService))]
-class CustomerService(IRepository repository) : ICustomerService
+class CustomerService(IRepository repository, ILogger<CustomerService> logger) : ICustomerService
 {
     public CustomerData[] GetCustomersWithOrders()
     {
@@ -52,4 +53,28 @@ class CustomerService(IRepository repository) : ICustomerService
 
         return GetCustomersWithOrdersFilteredBy(filter);
     }
+
+    public OverdueCustomerSummary[] GetCustomersWithOverdueOrders()
+    {
+        logger.LogDebug("Querying customers with overdue orders");
+
+        var today = DateTime.Today;
+        var result = repository.GetEntities<SalesOrderHeader>()
+            .Where(o => o.DueDate < today
+                && o.Status != SalesOrderHeaderStatusValues.Shipped
+                && o.Status != SalesOrderHeaderStatusValues.Cancelled)
+            .GroupBy(o => new { o.Customer.CustomerID, o.Customer.FirstName, o.Customer.LastName })
+            .Select(g => new OverdueCustomerSummary
+            {
+                CustomerName = g.Key.FirstName + " " + g.Key.LastName,
+                OverdueOrderCount = g.Count(),
+                OldestOverdueDueDate = g.Min(o => o.DueDate)
+            })
+            .OrderBy(x => x.OldestOverdueDueDate)
+            .ToArray();
+
+        logger.LogDebug("Found {Count} customers with overdue orders", result.Length);
+        return result;
+    }
 }
+
