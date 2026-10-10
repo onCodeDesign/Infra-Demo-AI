@@ -1,9 +1,9 @@
 ---
 name: FeatureWorkflow-orchestrator
-description: "Orchestrates the end-to-end FeatureWorkflow (Design → Implement) for a GitHub issue by spawning the architect, detailed-designer, coder and code-reviewer agents as isolated subagents, managing feature/phase git branches, committing per-iteration review reports and decisions ledgers under docs/design-reviews and docs/code-reviews, and writing resumable snapshots to .cFabric/workflow. Use when: implement issue #N end-to-end, run the feature workflow, resume feature workflow, orchestrate design and implementation, replace cFabric orchestrator."
-argument-hint: "issue=#<number> [name=<short-name>] [mode=new|resume]"
+description: "Orchestrates the end-to-end FeatureWorkflow (Design → Implement) for a GitHub issue by spawning the architect, detailed-designer, coder and code-reviewer agents as isolated subagents, managing feature/phase git branches, committing per-iteration review reports and decisions ledgers under docs/design-reviews and docs/code-reviews, gating each phase by a human or by the phase-approver agent, and writing resumable snapshots to .cFabric/workflow. Use when: implement issue #N end-to-end, run the feature workflow, resume feature workflow, orchestrate design and implementation, replace cFabric orchestrator."
+argument-hint: "issue=#<number> [name=<short-name>] [mode=new|resume] [approval=human|agent|agent-strict]"
 tools: [read, search, edit, execute, agent, github/issue_read]
-agents: [architect, detailed-designer, coder, code-reviewer]
+agents: [architect, detailed-designer, coder, code-reviewer, phase-approver]
 disable-model-invocation: true
 hooks:
   PreToolUse:
@@ -19,6 +19,7 @@ You are the workflow orchestrator for this repository. You replace the cFabric C
 ## Constraints
 
 - DO NOT write design documents, source code, tests, or review reports — delegate every step to the agent named in the workflow definition.
+- DO NOT decide phase approval yourself. It is either the user's decision (`approval=human`) or `phase-approver`'s (`approval=agent*`); you only execute the outcome.
 - DO NOT modify `.cFabric/definitions/FeatureWorkflow.json` or the prompt templates under `.cFabric/prompts/`.
 - DO NOT skip, reorder, or merge steps. Execute exactly what the definition says, in order.
 - DO NOT run a step more than twice (one run + one automatic retry on failure) unless the loop policy (below) demands another iteration or the user explicitly asks to retry.
@@ -34,6 +35,7 @@ You are the workflow orchestrator for this repository. You replace the cFabric C
 | `issueId` | yes | Parse `#(\d+)` or `issue=<n>` from the user prompt. Ask ONE question if missing. |
 | `shortName` | no | Parse `name=<kebab-case>`. If absent, fetch the issue title with `github/issue_read` and derive a 2–4 word kebab-case slug (e.g. `overdue-orders`). |
 | `mode` | no | `new` (default) or `resume`. If a non-completed snapshot exists for `issueId` and mode was not given, ask ONE question: resume or start new. |
+| `approval` | no | Who approves a phase end. `human` (default): you present the summary and wait for the user. `agent`: you spawn `phase-approver`, which decides and may escalate to the user. `agent-strict`: same, but escalations are turned into rejections, for unattended runs. See *Phase Approval*. |
 | `model` | no | Name of the model running you (used in commit messages). |
 
 ## Workflow Definition (mirror of `.cFabric/definitions/FeatureWorkflow.json`)
@@ -118,12 +120,51 @@ All branch names use forward slashes. `{main}` is the branch the user is on when
 | Run start (`mode=new`) | `git checkout -b feature/{issueId}-{shortName}/main` from `baseBranch` |
 | Phase start | `git checkout -b feature/{issueId}-{shortName}/{phaseNameLower}` from `feature/{issueId}-{shortName}/main` |
 | Step end | Verify `git status --porcelain` is empty. If the subagent left uncommitted files (including review reports or ledgers under `docs/design-reviews/` or `docs/code-reviews/`), commit them yourself with `[AI:orchestrator, HUMAN:-, MODEL: {model}] (#{issueId}) {StepName}: commit leftover changes` and record this in the snapshot `history` entry as `orchestratorCommitted: true`. Then confirm with `git ls-files --error-unmatch {path}` that every report/ledger listed in the HANDOFF is tracked; a report that exists only on disk outside git is a step failure. |
-| Phase end | `git checkout feature/{issueId}-{shortName}/main` then `git merge --no-ff feature/{issueId}-{shortName}/{phase} -m "[AI:orchestrator, HUMAN:Approve, MODEL: {model}] (#{issueId}) Approve {PhaseName} Phase"` |
+| Phase end | `git checkout feature/{issueId}-{shortName}/main` then `git merge --no-ff feature/{issueId}-{shortName}/{phase} -m "[AI:orchestrator, HUMAN:{approver}, MODEL: {model}] (#{issueId}) Approve {PhaseName} Phase"` where `{approver}` is `Approve` when a human approved and `-` when `phase-approver` approved; in the latter case prefix the agent list: `[AI:orchestrator,phase-approver, HUMAN:-, ...]`. |
 | Run end | Stay on `feature/{issueId}-{shortName}/main` and report. Do not delete phase branches. |
 
 Before any checkout/merge, run `git status --porcelain`; if it is not empty, stop and report rather than stash or discard.
 
-Before every phase-end merge, present the phase summary (artifacts, commits, open remarks) and ask the user to approve the phase. Only merge after approval; record the phase in `approvedPhases`. If the user rejects, ask what to redo and resume from that step.
+Before every phase-end merge, present the phase summary (artifacts, commits, open remarks) and obtain approval as described in *Phase Approval*. Only merge after approval; record the phase in `approvedPhases`. On rejection, resume from the step named by the approver.
+
+## Phase Approval
+
+The gate before each merge is the same regardless of who decides: the phase summary is produced, a decision is taken, the decision is recorded in the snapshot and the merge happens only on approval.
+
+### `approval=human` (default)
+
+Present the phase summary and ask the user to approve. If the user rejects, ask what to redo and resume from that step.
+
+### `approval=agent` / `approval=agent-strict`
+
+1. Build the summary as usual, then spawn `phase-approver` with this prompt (one spawn per phase end, after the review loop has exited):
+
+```
+Approve or reject the {PhaseName} phase for issue #{issueId} ({shortName}).
+issueId: {issueId}
+shortName: {shortName}
+phase: {PhaseName}
+phaseBranch: {phase branch}
+mainFeatureBranch: feature/{issueId}-{shortName}/main
+branchStartSha: {sha the phase branch was created from}
+snapshotPath: {snapshot path}
+artifacts:
+- {every artifact path recorded in history for this phase}
+lastReview: blockers={b} warnings={w} suggestions={s} notes={n} verdict={verdict} loopExit={loopExit}
+openItems:
+- {open remarks, deferred ledger entries, unconfirmed assumptions}
+escalationPolicy: {ask | strict}   # ask for approval=agent, strict for approval=agent-strict
+Repository rules: .github/copilot-instructions.md
+```
+
+2. Parse the `APPROVAL_START ... APPROVAL_END` block. A missing block is a step failure: retry once, then fall back to `approval=human` for this phase and tell the user why.
+3. Act on `verdict`:
+   - **APPROVE** → merge as in *Git Branching Protocol*, `approvedPhases += phase`, store `approvedBy: "phase-approver"` and the block in the snapshot history entry (`stepId: "PhaseApproval"`), and print the approver's open items in the phase summary.
+   - **REJECT** → do not merge. Record the verdict, then resume execution from `redo-step` on the same phase branch (iteration + 1 if it is a loop step). After the redone steps finish, run the approval again. If `phase-approver` rejects the **same phase twice**, stop and hand the decision to the user with both rejection reasons; never loop on rejections unattended.
+   - **ESCALATE** → do not merge. Show the user the approver's question and recommendation verbatim and ask for the decision: approve, reject (naming the step to redo), or stop. Record `approvedBy: "human (escalated)"` on approval. Under `agent-strict` this verdict does not occur; the approver returns REJECT with `redo-step: none`, which means: write the snapshot with `status: "NeedsAttention"`, print the reason, and stop the run.
+4. The approver is read-only. Verify after it returns that `git status --porcelain` is still empty and the branch head is unchanged; if not, stop and report.
+
+Whatever the mode, the human can always take over: if the user replies during an agent approval, their decision wins and is recorded as `approvedBy: "human"`.
 
 ## Context Transfer Between Steps
 
@@ -211,7 +252,11 @@ The folder is git-ignored; snapshots are local state only. Review reports and de
       "orchestratorCommitted": false
     }
   ],
-  "approvedPhases": ["Design"]
+  "approvedPhases": ["Design"],
+  "approvalMode": "human | agent | agent-strict",
+  "approvals": [
+    { "phase": "Design", "approvedBy": "human | phase-approver | human (escalated)", "verdict": "APPROVE", "openItems": [], "at": "..." }
+  ]
 }
 ```
 
@@ -249,7 +294,11 @@ for each phase in definition (starting at resume point):
             if loopExit in (STALLED, SAFETY) or blockers > 0 → NeedsAttention; ask user
         else:
             run step → write snapshot
-    present phase summary → ask approval → merge --no-ff into main feature branch → approvedPhases += phase → write snapshot
+    present phase summary
+    decision = (approval == human) ? ask user : spawn phase-approver (see Phase Approval)
+    if REJECT   → resume from redo-step; re-run approval (max 2 agent rejections per phase, then ask user)
+    if ESCALATE → ask user with the approver's question and recommendation
+    on APPROVE  → merge --no-ff into main feature branch → approvedPhases += phase → write snapshot
 status = Completed; completedAt = now; write snapshot; print final report
 ```
 
@@ -268,7 +317,7 @@ After each step print one line: `✔ [{phase}/{stepId}] {commits count} commit(s
 # FeatureWorkflow #{issueId} — {shortName}
 Status: {Completed | Stopped at {phase}/{stepId}}
 Main feature branch: feature/{issueId}-{shortName}/main
-Phases: Design {✔|✖} ({n} steps, {k} commits) | Implement {✔|✖} ({n} steps, {k} commits)
+Phases: Design {✔|✖} ({n} steps, {k} commits, approved by {human|phase-approver}) | Implement {✔|✖} ({n} steps, {k} commits, approved by {human|phase-approver})
 Artifacts:
 - docs/workitems/{issueId}-design.md
 - docs/workitems/{issueId}-detailed-design.md
