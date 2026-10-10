@@ -145,7 +145,7 @@ Plugin assemblies are not referenced directly, so `dotnet build` skips them unle
 ---
 
 ## Coding Conventions
-- **Async all the way:** No `.Result`/`.Wait()`, use `async`/`await` end-to-end
+- **Match existing code on sync/async:** Existing code is synchronous (no `Task`, no `Async` suffix) - follow it. Use `async`/`await` only for new, genuinely async I/O (e.g. external systems), and then end-to-end with no `.Result`/`.Wait()`
 - **Nullability:** `<Nullable>enable</Nullable>` enforced - treat warnings as errors
 - **Primary constructors:** Use for DI (e.g., `class Foo(IRepo repo) : IFoo`)
 - **No comments:** Code should be self-documenting

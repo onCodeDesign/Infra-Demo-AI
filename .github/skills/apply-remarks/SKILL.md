@@ -29,7 +29,7 @@ The skill is **review-target-agnostic**: it works for code reviews (where remark
 4. **Apply accepted remarks** → Minimal, targeted edits per remark — one logical change at a time
 5. **Verify** → Run the verification appropriate to the target (e.g., build + test for code; render/lint check for docs). Skip if no verification applies.
 6. **Produce decisions ledger** → Append iteration to the Decisions Ledger (see format below)
-7. **Commit** → Include applied remark IDs in commit message (e.g., `Applied R1, R3, R5`)
+7. **Commit** → Use the commit message template from `copilot-instructions.md` and include applied remark IDs in the description (e.g., `Applied R1, R3, R5`)
 
 ## Remark Classification Rules
 
@@ -78,7 +78,7 @@ If the status already contains "AI: Review Applied - {verdict} - iteration {M}",
 
 ### Location
 
-Save to the `decisionsLedgerPath` supplied by the invoking agent. If the file already exists from a prior iteration, **append** the new iteration — do NOT overwrite prior iterations.
+Save to the `decisionsLedgerPath` supplied by the invoking agent. If the supplied path is a folder, save as `{folder}/{default file name}`. The ledger at this path is also the prior decisions source when `priorDecisionsPath` is not given. If the file already exists from a prior iteration, **append** the new iteration — do NOT overwrite prior iterations.
 When the path is not provided, use the defaults in below table.
 
 File name conventions and default paths per invoking agent:

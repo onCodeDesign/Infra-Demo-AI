@@ -36,6 +36,7 @@ Implements features from design documents. Follows `.github/copilot-instructions
 ### 1. Small Commits
 - 1-3 files per commit, one logical feature unit
 - Commit per component completion
+- Message: `[AI:coder, HUMAN:-, MODEL: {ModelNameAndVersion}] (#{issueId}) {ShortDescription}`
 
 ### 2. No Unrelated Refactoring
 - **ONLY** modify code for current issue
@@ -96,11 +97,11 @@ Implements features from design documents. Follows `.github/copilot-instructions
 
 **Inputs:**
 - `reviewReportPath` (required): Path to the review report
-- `priorDecisions` (optional): Path to existing decisions ledger. Default: `docs/code-reviews/{issueId}-decisions.md`
+- `decisionsLedgerPath` (optional): Path of the decisions ledger, read as prior decisions and appended to. A folder means `{folder}/{issueId}-code-review-decisions.md`. Default: `docs/code-reviews/{issueId}-code-review-decisions.md`
 
 **Workflow:** Load context → Classify remarks (APPLY/REJECT/DEFER) → Check oscillation → Apply → Build + Test → Produce decisions ledger → Commit
 
-**Output:** Decisions ledger at `docs/code-reviews/{issueId}-decisions.md`, minimal commits, working code
+**Output:** Decisions ledger at `decisionsLedgerPath`, minimal commits, working code
 
 > For classification rules, anti-oscillation safeguards, and ledger format, use the **apply-remarks** skill.
 
@@ -111,7 +112,7 @@ Implements features from design documents. Follows `.github/copilot-instructions
 
 **CRITICAL:**
 - No cross-module refs | Services: Contracts, DataAccess, DataModel only
-- Primary constructors | Async/await | Internal by default
+- Primary constructors | Match existing sync/async style | Internal by default
 
 ## Quality Bar
 - [ ] Small commits, matches design, build/tests pass
@@ -135,9 +136,9 @@ Mode: IMPLEMENT|UNIT TESTS (Simple|Complex Slice X/Y)|APPLY REMARKS
 Issue #NNN — {description}
 Files: {list with paths}
 Review Report: {path} (Mode 3 only)
-Prior Decisions: {path | "none"} (Mode 3 only)
+Decisions Ledger: {path | "none yet"} (Mode 3 only)
 Remarks to process: {count by action: N APPLY, N REJECT, N DEFER} (Mode 3 only)
-Commit: "{message}"
+Commit: "[AI:coder, HUMAN:-, MODEL: {ModelNameAndVersion}] (#NNN) {description}"
 Dependency check: ✅ {verification}
 ```
 
@@ -179,7 +180,7 @@ Dependency check: ✅ {verification}
 
 **Architecture (per `copilot-instructions.md`):**
 - [ ] `[Service]` on all services, no cross-module deps, no direct DbContext
-- [ ] Async/await throughout, nullable handled, internal by default
+- [ ] Sync/async style matches existing code (no blocking `.Result`/`.Wait()`), nullable handled, internal by default
 
 ## Error Recovery
 
@@ -215,7 +216,7 @@ HANDOFF_END
 - **designDocPath** (optional): default `docs/workitems/{issueId}-design.md`
 - **detailedDesignDocPath** (optional): default `docs/workitems/{issueId}-detailed-design.md`
 - **reviewReportPath** (Mode 3): path to the review report
-- **priorDecisionsPath** (Mode 3, optional): path to prior decisions ledger, default `docs/code-reviews/{issueId}-decisions.md`
+- **decisionsLedgerPath** (Mode 3, optional): decisions ledger path or folder, default `docs/code-reviews/{issueId}-code-review-decisions.md`
 
 ## Prepared Prompts
 
@@ -232,7 +233,7 @@ HANDOFF_END
 ```
 
 ```
-@coder [Mode: Apply Remarks] Issue #[NUMBER] - apply remarks from [REVIEW_REPORT_PATH] with prior decisions at [DECISIONS_LEDGER_PATH]
+@coder [Mode: Apply Remarks] Issue #[NUMBER] - apply remarks from [REVIEW_REPORT_PATH] with decisions ledger at [DECISIONS_LEDGER_PATH]
 ```
 
 ```

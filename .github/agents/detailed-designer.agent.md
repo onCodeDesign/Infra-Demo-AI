@@ -82,9 +82,9 @@ You MUST enforce these rules from the repository's architecture:
 - **Data Access**: Read-only via `IRepository.GetEntities<T>()`, writes via `IUnitOfWork`
 - **Module Isolation**: Each module loads in separate LoadContext via `.AddPlugin()`
 - **Entity Interceptors**: Use `IEntityInterceptor<T>` for specific entities or `IEntityInterceptor` for global hooks
+- **Sync/Async**: Existing module code is synchronous. Specify synchronous contracts (no `Task`, no `CancellationToken`, no `Async` suffix) unless the operation is new, genuinely async I/O (e.g. external systems). The samples below are synchronous accordingly.
 
 ## Design Quality Bar
-
 Every detailed design must meet these criteria:
 - [ ] **Clear Interfaces**: Every major component has explicit interface definitions with parameters and return types
 - [ ] **Cross-Cutting Concerns**: Error handling, logging, validation, and security are addressed
@@ -118,19 +118,17 @@ public interface IOrderingService
     /// Creates a new sales order with validation
     /// </summary>
     /// <param name="orderDto">Order creation data</param>
-    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created order ID</returns>
     /// <exception cref="ValidationException">When order data is invalid</exception>
     /// <exception cref="ProductNotFoundException">When product doesn't exist</exception>
-    Task<int> CreateOrderAsync(CreateOrderDto orderDto, CancellationToken cancellationToken = default);
+    int CreateOrder(CreateOrderDto orderDto);
     
     /// <summary>
     /// Retrieves order by ID with related entities
     /// </summary>
     /// <param name="orderId">Order identifier</param>
-    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Order details or null if not found</returns>
-    Task<OrderDetailsDto?> GetOrderAsync(int orderId, CancellationToken cancellationToken = default);
+    OrderDetailsDto? GetOrder(int orderId);
 }
 ```
 
@@ -201,7 +199,7 @@ namespace Sales.Services.Internal;
 
 internal interface IOrderValidator
 {
-    Task<ValidationResult> ValidateOrderAsync(CreateOrderDto orderDto, CancellationToken ct);
+    ValidationResult ValidateOrder(CreateOrderDto orderDto);
 }
 
 internal sealed record ValidationResult
@@ -355,35 +353,35 @@ For operations that must be idempotent:
 /// Creates order idempotently using OrderNumber as idempotency key
 /// If order with same OrderNumber exists, returns existing order ID
 /// </summary>
-Task<int> CreateOrderAsync(CreateOrderDto orderDto, CancellationToken ct);
+int CreateOrder(CreateOrderDto orderDto);
 ```
 
 ### 7. Test Strategy
 
 #### Unit Tests
-For each service:
+For each service, named `{Method}_{Scenario}_{Expected}`. Cross-module collaborators (e.g. `IProductService`, `INotificationService`) are faked through their `Contracts` interfaces, so interaction scenarios are unit tests:
 ```
 OrderingServiceTests
-├─ CreateOrderAsync_WithValidData_CreatesOrder
-├─ CreateOrderAsync_WithInvalidCustomerId_ThrowsValidationException
-├─ CreateOrderAsync_WithNonExistentProduct_ThrowsProductNotFoundException
-├─ CreateOrderAsync_WithDuplicateOrderNumber_ReturnsExistingOrder (idempotency)
-└─ GetOrderAsync_WithValidId_ReturnsOrderDetails
+├─ CreateOrder_WithValidData_CreatesOrder
+├─ CreateOrder_WithInvalidCustomerId_ThrowsValidationException
+├─ CreateOrder_WithNonExistentProduct_ThrowsProductNotFoundException
+├─ CreateOrder_WithDuplicateOrderNumber_ReturnsExistingOrder (idempotency)
+├─ CreateOrder_WithValidData_ChecksProductAvailabilityViaProductService
+├─ CreateOrder_WithValidData_SendsNotificationViaNotificationService
+└─ GetOrder_WithValidId_ReturnsOrderDetails
 ```
 
 #### Integration Tests
-For cross-module interactions:
+Only for scenarios that run against real infrastructure (e.g. the data access layer and interceptors). Named `When{Scenario}_Then{ExpectedResult}`:
 ```
 OrderingIntegrationTests
-├─ CreateOrder_ValidatesProductAvailability_ViaProductService
-├─ CreateOrder_SendsNotification_ViaNotificationService
-└─ CreateOrder_SavesWithCalculatedFields_ViaInterceptor
+└─ WhenCreatingOrder_ThenTotalDueIsCalculatedByInterceptor
 ```
 
 #### Acceptance Criteria per Component
 Map tests to requirements:
 - **Requirement**: "Order must calculate total including tax"
-  - **Test**: `CreateOrder_CalculatesTotalWithTax_ViaInterceptor`
+  - **Test**: `WhenCreatingOrder_ThenTotalDueIsCalculatedByInterceptor`
   - **Acceptance**: `TotalDue = SubTotal + TaxAmt` within 0.01 tolerance
 
 ### 8. Implementation Plan
@@ -511,8 +509,8 @@ Save detailed design as `docs/workitems/{issue-id}-detailed-design.md`:
 ### 10. Commit & Handover
 - Create `docs/workitems/` directory if missing
 - Save detailed design document as `{issue-id}-detailed-design.md`
-- Commit with message: `[AI:det-des, HUMAN:-, MODEL: sonnet-4.5] docs: Add detailed design for #{issue-id}`
-- Output message: `Detailed design committed. Ready for handover to @detailed-designer-reviewer`
+- Commit with message: `[AI:detailed-designer, HUMAN:-, MODEL: {ModelNameAndVersion}] (#{issue-id}) Add detailed design`
+- Output message: `Detailed design committed. Ready for review by @detailed-designer (Review Detailed Design handoff)`
 
 ## When Reviewing
 
@@ -551,6 +549,7 @@ After completing the review, you MUST save the findings as a Markdown report fil
 - **reviewReportPath** (required): Path to the review report produced by the **design-review-md-report** skill
 - **detailedDesignPath** (inferred): Path to the detailed design document being amended. Default: `docs/workitems/{issueId}-detailed-design.md`
 - **priorDecisionsPath** (optional): Existing decisions ledger from a prior iteration. Default: `docs/workitems/{issueId}-detailed-design-decisions.md`
+- **decisionsLedgerPath** (optional): Ledger path or folder given in the prompt (a folder means `{folder}/{issueId}-detailed-design-decisions.md`). Default: `docs/workitems/{issueId}-detailed-design-decisions.md`. When given, it is also the prior decisions location.
 
 ### Skill Invocation
 Use the **apply-remarks** skill with the following bindings:
@@ -558,8 +557,8 @@ Use the **apply-remarks** skill with the following bindings:
 | Skill input | Value |
 |-------------|-------|
 | `reviewReportPath` | from prompt |
-| `priorDecisionsPath` | from prompt (or default above) |
-| `decisionsLedgerPath` | `docs/workitems/{issueId}-detailed-design-decisions.md` |
+| `priorDecisionsPath` | from prompt, else the resolved `decisionsLedgerPath` |
+| `decisionsLedgerPath` | from prompt if given, else `docs/workitems/{issueId}-detailed-design-decisions.md` |
 | `referenceDocuments` | the approved architecture design (`docs/workitems/{issueId}-design.md`) and the repository's `.github/copilot-instructions.md` |
 | Target (locator) | `detailedDesignPath` |
 | Location (locator) | Section heading from the design doc (e.g., `## Module-Level Contracts > ### Interfaces`) |
@@ -574,7 +573,7 @@ In addition to the skill's generic criteria, REJECT a remark with `DESIGN_CONFLI
 - Violates the repository's architecture constraints (dependency rules, cross-module references, etc.)
 
 ### Commit & Output
-- Commit message: `[AI:det-des, HUMAN:-, MODEL: sonnet-4.5] docs: Apply review remarks to detailed design for #{issueId} (Iteration {N})`
+- Commit message: `[AI:detailed-designer, HUMAN:-, MODEL: {ModelNameAndVersion}] (#{issueId}) Apply review remarks to detailed design (Iteration {N})`
 - Output chat summary: iteration number, counts (applied/rejected/deferred), oscillation conflicts (if any), and path to the updated decisions ledger.
 
 ## What This Agent Does NOT Do
@@ -601,4 +600,4 @@ In addition to the skill's generic criteria, REJECT a remark with `DESIGN_CONFLI
 - Complete interface/DTO/exception specifications
 - Test strategy and implementation plan
 - Git commit of the document
-- Handover message to reviewer agent
+- Handover message for the detailed design review step (`Review Detailed Design` handoff)

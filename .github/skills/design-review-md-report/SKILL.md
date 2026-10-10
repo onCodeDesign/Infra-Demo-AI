@@ -183,5 +183,5 @@ Use the following template **exactly**. Replace all `{placeholders}` with actual
 
 ## After Saving the Report
 
-- Commit with message: `[AI:det-des, HUMAN:-, MODEL: {model}] docs: Add detailed design review for #{issueId}`
+- Commit with message: `[AI:detailed-designer, HUMAN:-, MODEL: {model}] (#{issueId}) Add detailed design review`
 - Post a chat summary with: verdict, total remarks count, and the relative path to the saved file

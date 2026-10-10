@@ -1,1 +1,1 @@
-Apply remarks from review report .cFabric\workflow\{issueId}\{issueId}-detailed-design-review_20260522-1821.md to the detailed design for issue #{issueId}. Write the decisions ledger in this folder .cFabric\workflow\{issueId}\
+Apply remarks from the most recent review report matching `.cFabric\workflow\{issueId}\{issueId}-detailed-design-review_*.md` (latest timestamp) to the detailed design for issue #{issueId}. Use the decisions ledger `.cFabric\workflow\{issueId}\{issueId}-detailed-design-decisions.md` (create it if missing, append otherwise).

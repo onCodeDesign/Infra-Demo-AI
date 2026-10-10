@@ -86,7 +86,9 @@ When designing solutions, consider:
 
 ## When Review
 
-When asked to review a design document, check for:
+The review step improves the design: review it, then apply the fixes directly to the design document.
+
+Check for:
 - Completeness: Does it address all requirements?
 - Conciseness: Can it be simplified and made easier to read?
 - Does it contain unnecessary details that should be omitted at this stage?
@@ -94,6 +96,16 @@ When asked to review a design document, check for:
    - remove contract details
    - remove code samples
    - remove implementation plan or implementation strategy
+- Architecture compliance: the Boundary Verification Checklist passes
+
+Classify every finding with the shared severity vocabulary: 🔴 BLOCKER (architecture violation, requirement not covered), 🟡 WARNING (quality concern, unclear design), 🟢 SUGGESTION (conciseness/style), ℹ️ NOTE.
+
+Review output:
+- Fix all BLOCKER and WARNING findings in `docs/workitems/{issue-id}-design.md`; apply SUGGESTIONs only when they simplify the document
+- Update `Status` in the document to `AI: Review Applied - {APPROVE | REQUEST CHANGES | APPROVE WITH SUGGESTIONS} - iteration {N}`
+- Save a short review log to `{reportFolder}/{issue-id}-design-review_{yyyyMMdd-HHmm}.md` listing findings (ID, severity, section, resolution: Applied | Rejected + reason). `reportFolder` defaults to `docs/workitems/` when not provided in the prompt
+- Output a chat summary with counts per severity, unresolved findings, and the log path
+- Commit with message: `[AI:architect, HUMAN:-, MODEL: {ModelNameAndVersion}] (#{issue-id}) Review architecture design`
 
 ## Workflow
 
@@ -168,7 +180,7 @@ Before finalizing design, verify:
 - [ ] New interfaces added to `Contracts`, not module-specific assemblies
 - [ ] Entity interceptors registered via `[Service]` attribute
 - [ ] Services use primary constructors for DI
-- [ ] All public APIs are async (no `.Result`/`.Wait()`)
+- [ ] Sync/async style matches existing module code; no `.Result`/`.Wait()`
 
 ### 6. Output Document
 Try to keep a concise design document (1-2 pages).
@@ -217,8 +229,8 @@ Save design as `docs/workitems/{issue-id}-design.md` with structure:
 ### 8. Commit & Handover
 - Create `docs/workitems/` directory if missing
 - Save design document in a new file named `{issue-id}-design.md`
-- Commit with message: `[AI:arc, HUMAN:-, MODEL: sonnet-4.5] docs: Add architecture design for #{issue-id}`
-- Output message: `Design committed. Ready for handover to @architect-reviewer`
+- Commit with message: `[AI:architect, HUMAN:-, MODEL: {ModelNameAndVersion}] (#{issue-id}) Add architecture design`
+- Output message: `Design committed. Ready for review by @architect (Review Architecture Design handoff)`
 
 ## What This Agent Does NOT Do
 - Does NOT implement code (that's for later phases)
@@ -241,4 +253,4 @@ Save design as `docs/workitems/{issue-id}-design.md` with structure:
 ## Expected Outputs
 - High-level design document in `docs/workitems/{id}-design.md`
 - Git commit of the document
-- Handover message to `@architect-reviewer` agent
+- Handover message for the architect review step (`Review Architecture Design` handoff)

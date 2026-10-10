@@ -1,1 +1,1 @@
-Review the Technical Design for issue #{issueId} from file: `docs\workitems\{issueId}-design.md`
+Review the Technical Design for issue #{issueId} from file: `docs\workitems\{issueId}-design.md`. Apply the fixes to the document and save the review log to the `.cFabric\workflow\{issueId}\` folder.
