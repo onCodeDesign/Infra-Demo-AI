@@ -601,3 +601,31 @@ In addition to the skill's generic criteria, REJECT a remark with `DESIGN_CONFLI
 - Test strategy and implementation plan
 - Git commit of the document
 - Handover message for the detailed design review step (`Review Detailed Design` handoff)
+- HANDOFF block (see Completion Protocol)
+
+## Completion Protocol
+
+After the final commit of every invocation (create, review, or apply remarks), output this HANDOFF block verbatim before the handover message:
+
+```
+HANDOFF_START
+issue-id: {GitHub issue number}
+mode: CREATE|REVIEW|APPLY_REMARKS (Iteration N)
+artifact-path: {relative path to the detailed design document}
+review-report-path: {path to the review report | "N/A" if not REVIEW mode}
+decisions-ledger: {path to the decisions ledger | "N/A" if not APPLY_REMARKS mode}
+blockers: {count, REVIEW mode only, else 0}
+warnings: {count, REVIEW mode only, else 0}
+suggestions: {count, REVIEW mode only, else 0}
+notes: {count, REVIEW mode only, else 0}
+verdict: {APPROVE|APPROVE WITH SUGGESTIONS|REQUEST CHANGES | "N/A" if not REVIEW mode}
+remarks-applied: {count, APPLY_REMARKS mode only, else 0}
+remarks-rejected: {count, APPLY_REMARKS mode only, else 0}
+remarks-deferred: {count, APPLY_REMARKS mode only, else 0}
+commits: "{comma-separated list of commits. Format: '{commit-id}, {commit-id}, ...'}"
+status: {DONE|BLOCKED}
+next-steps: {brief description of next steps}
+HANDOFF_END
+```
+
+The counts and verdict MUST match the saved review report exactly.

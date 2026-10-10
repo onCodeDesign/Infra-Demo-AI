@@ -5,6 +5,11 @@ argument-hint: "issue=#<number> [name=<short-name>] [mode=new|resume]"
 tools: [read, search, edit, execute, agent, github/issue_read]
 agents: [architect, detailed-designer, coder, code-reviewer]
 disable-model-invocation: true
+hooks:
+  PreToolUse:
+    - type: command
+      command: "pwsh -NoProfile -ExecutionPolicy Bypass -File .github/hooks/scripts/block-destructive-git.ps1"
+      timeout: 10
 ---
 
 # FeatureWorkflow Orchestrator
@@ -17,7 +22,7 @@ You are the workflow orchestrator for this repository. You replace the cFabric C
 - DO NOT modify `.cFabric/definitions/FeatureWorkflow.json` or the prompt templates under `.cFabric/prompts/`.
 - DO NOT skip, reorder, or merge steps. Execute exactly what the definition says, in order.
 - DO NOT run a step more than twice (one run + one automatic retry on failure) unless the loop policy (below) demands it or the user explicitly asks to retry.
-- DO NOT push to any remote, force-push, rebase, or delete branches.
+- DO NOT push to any remote, force-push, rebase, or delete branches. A `PreToolUse` hook (`.github/hooks/scripts/block-destructive-git.ps1`) denies `git push`, `git reset --hard` and branch deletion (`git branch -d/-D/--delete`) for this agent; if a call is denied, report it to the user instead of working around it.
 - DO NOT run a step while the working tree has uncommitted changes from a prior step — stop and report instead.
 - ONLY spawn one subagent at a time; steps are strictly sequential.
 
@@ -67,7 +72,7 @@ Phase "Implement"                           branch: feature/{issueId}-{shortName
 Map report severities as: 🔴 Blocker → Major, 🟡 Warning → Minor, 🟢 Suggestion → Trivial, ℹ️ Note → Info.
 
 After every `Review` step inside a loop:
-1. Parse the review report (and the agent's HANDOFF block when present) for the Blocker and Warning counts and the verdict.
+1. Read the counts and verdict: for `detailed-designer`, from the HANDOFF fields `blockers`, `warnings`, `suggestions`, `notes`, `verdict`; for `code-reviewer`, whose HANDOFF only has `remarks-count` and `verdict` (`APPROVED | APPROVED_WITH_REMARKS | REJECTED`), read the Blockers/Warnings counts from the report at `review-report-path`. If a HANDOFF disagrees with the saved report, trust the report and note the mismatch in the history entry.
 2. **Exit the loop** (skip the following `ProcessReview`) when Blockers = 0 **and** Warnings = 0, or when the verdict is `APPROVE`/`APPROVED`.
 3. Otherwise run `ProcessReview`, increment the iteration, and repeat while `iteration <= maxIterations`.
 4. When `maxIterations` is exhausted and the last review still has Blockers, mark the phase `NeedsAttention`, write the snapshot, and ask the user whether to continue to the next phase, run one extra iteration, or stop.
@@ -100,6 +105,7 @@ Before every phase-end merge, present the phase summary (artifacts, commits, ope
 | `{iteration-number}` | current loop iteration |
 | `{code-review-report}` | `review-report-path` from the code-reviewer HANDOFF block |
 | `{verdict}`, `{review-dimensions}`, `{remarks-count}`, `{deviations-from-design}` | code-reviewer HANDOFF block |
+| Design review report / decisions ledger paths | `review-report-path` and `decisions-ledger` from the detailed-designer HANDOFF block |
 | Hard-coded timestamped paths in a template (e.g. `..._20260522-1821.md`) | **Replace** with the newest file matching the same pattern in that folder (e.g. `.cFabric/workflow/{issueId}/{issueId}-detailed-design-review_*.md`). Never pass a stale path. |
 
 3. Append a short orchestrator context footer to every spawned prompt:
@@ -114,7 +120,7 @@ Repository rules: .github/copilot-instructions.md
 ```
 
 4. Spawn the agent with the `agent` tool, using exactly the `agentName` from the definition. Wait for it to finish.
-5. Capture from the result: HANDOFF block (if any), artifact paths mentioned, new commits (`git log {branchStartSha}..HEAD --oneline`), and for review steps the severity counts.
+5. Capture from the result: the HANDOFF block (every spawned agent emits one: `HANDOFF_START` ... `HANDOFF_END`), its `artifact-path`/`commits`/`status` fields, and new commits (`git log {branchStartSha}..HEAD --oneline`). Treat a missing HANDOFF block, `status: BLOCKED` (architect, detailed-designer), or `build-status`/`test-status` starting with `FAIL` (coder) as a step failure. Store the parsed key/values in the history entry `handoff`.
 
 If a spawned agent reports failure (build/test failed after its retries, missing input, or it asks a question):
 1. Record the attempt in the history entry (`attempts: 1`, `status: "Failed"`, the agent's message) and write the snapshot.

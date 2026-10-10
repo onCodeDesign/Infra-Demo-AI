@@ -254,3 +254,20 @@ Save design as `docs/workitems/{issue-id}-design.md` with structure:
 - High-level design document in `docs/workitems/{id}-design.md`
 - Git commit of the document
 - Handover message for the architect review step (`Review Architecture Design` handoff)
+- HANDOFF block (see Completion Protocol)
+
+## Completion Protocol
+
+After the final commit of every invocation (create or review), output this HANDOFF block verbatim before the handover message:
+
+```
+HANDOFF_START
+issue-id: {GitHub issue number}
+mode: CREATE|REVIEW
+artifact-path: {relative path to the design document}
+commits: "{comma-separated list of commits. Format: '{commit-id}, {commit-id}, ...'}"
+review-applied: {true|false - REVIEW mode only: whether the review changed the document; false in CREATE mode}
+status: {DONE|BLOCKED}
+next-steps: {brief description of next steps}
+HANDOFF_END
+```
