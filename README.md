@@ -1,5 +1,5 @@
 # AppInfra-Training
-Training repository for Application Infrastructure for Clean Architecture — containing examples, templates, and exercises used to build maintainable, modular, and production-ready systems.
+
+Labs repository for the **Engineering Agentic AI on Application Infrastructure** training, containing examples, templates, and hands-on exercises for coordinating AI agents on structured Application Infrastructure.
 
 Upcoming workshop dates and full training details are available at https://clean-architecture.net
-.
